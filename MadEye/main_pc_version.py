@@ -95,7 +95,7 @@ class TextToSpeech(object):
         self.access_token = None
 
 def get_token(self):
-    fetch_token_url = "https://southeastasia.api.cognitive.microsoft.com/sts/v1.0/issueToken"
+    fetch_token_url = "https://centralindia.api.cognitive.microsoft.com/sts/v1.0/issuetoken"
     headers = {
         'Ocp-Apim-Subscription-Key': self.subscription_key
     }
@@ -103,20 +103,20 @@ def get_token(self):
     self.access_token = str(response.text)
 
 def save_audio(self, uid):
-    base_url = 'https://southeastasia.tts.speech.microsoft.com/'
+    base_url = 'https://centralindia.tts.speech.microsoft.com/'
     path = 'cognitiveservices/v1'
     constructed_url = base_url + path
     headers = {
         'Authorization': 'Bearer ' + self.access_token,
         'Content-Type': 'application/ssml+xml',
         'X-Microsoft-OutputFormat': 'riff-24khz-16bit-mono-pcm',
-        'User-Agent': 'Ocularis_TTS'
+        'User-Agent': 'MadEyeSpeech'
     }
     xml_body = ElementTree.Element('speak', version='1.0')
-    xml_body.set('{http://www.w3.org/XML/1998/namespace}lang', 'en-us')
+    xml_body.set('{http://www.w3.org/XML/1998/namespace}lang', 'en-IN')
     voice = ElementTree.SubElement(xml_body, 'voice')
-    voice.set('{http://www.w3.org/XML/1998/namespace}lang', 'en-US')
-    voice.set('name', 'Microsoft Server Speech Text to Speech Voice (en-US, Guy24KRUS)')
+    voice.set('{http://www.w3.org/XML/1998/namespace}lang', 'en-IN')
+    voice.set('name', 'Microsoft Server Speech Text to Speech Voice (en-IN, PrabhatNeural)')
     voice.text = self.tts
     body = ElementTree.tostring(xml_body)
 
@@ -142,16 +142,17 @@ def clock():
 def voiceassist():
 
     try:
-        urly = 'https://southeastasia.api.cognitive.microsoft.com/luis/v2.0/apps/0e1ef411-24d0-48b2-b924-7c42fc671289?verbose=true&timezoneOffset=-360&subscription-key=11b237c49a0b4bed99630659b34949d7&q='
+        urly = 'https://australiaeast.api.cognitive.microsoft.com/luis/prediction/v3.0/apps/4a8d7554-ab53-4710-b45a-47b86b038067/slots/staging/predict?subscription-key=ccf815c9d447441782073e716f6558ff&verbose=true&show-all-intents=true&log=true&query='
         save_speech(rand.choice(['greet1','greet2','greet3','greet4']))
         request_said = speech2text()
         response = urllib.request.urlopen(urly + urllib.parse.quote(request_said, safe='')).read().decode('utf-8')
         # Loads response as JSON
         weathery = json.loads(response)
-        intent_classified = weathery['topScoringIntent']['intent']
+        intent_classified = weathery['prediction']['topIntent']
         eval(intent_classified + '()')
 
-    except Exception:
+    except Exception as e:
+        print(e)
         save_speech('unknownError')
         pass
 
@@ -161,7 +162,7 @@ def voiceassist():
 def modular_speech(text):
     try:
         global sound_dur
-        subscription_key = "51140fb620194c33b1e60d3df44bfd1f"
+        subscription_key = "0e87f4dde3cf4c3f927f2f8227dbd833"
         now = datetime.datetime.now()
         uid = str(now.date()) + str(now.hour) + str(now.minute) + str(now.second)
         app = TextToSpeech(subscription_key, text)
@@ -280,17 +281,17 @@ def naviagtor(mlon, mlat, loc):
 def location(address):
 
     try:
-        addresses = pyap.parse(address, country='US')
+        addresses = pyap.parse(address, country='IN')
         return addresses[0]
 
     except Exception:
         pass
 
 
-# location('can you direct me to 1394 Woodridge Lane Memphis Tennessee')
+# location('can you direct me to talwandi, kota')
 
 def speech2text():
-    speech_key, service_region = "90fbc93a198546baa5a8d9de2dec3bee", "southeastasia"
+    speech_key, service_region = "0e87f4dde3cf4c3f927f2f8227dbd833", "centralindia"
     speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
 
     # Creates a recognizer with the given settings
@@ -379,7 +380,8 @@ def directions():
         except IndexError:
             loc = speech
         naviagtor(mlon, mlat, loc)
-    except Exception:
+    except Exception as e:
+        print(e)
         save_speech('error')
 
 
@@ -609,13 +611,19 @@ def uber():
 
 def whatsthat():
     try:
-        now = datetime.datetime.now()
-        timer = str(now.date()) + str(now.hour) + str(now.minute) + str(now.second)
-
-        name_docu = os.path.join(os.getcwd(), 'tempimages', timer + '.jpeg')
+        samplenum=10
+        count=0
         cap = cv2.VideoCapture(0)
-        r, image = cap.read()
-        cv2.imwrite(name_docu, image)
+        while True:
+            now = datetime.datetime.now()
+            timer = str(now.date()) + str(now.hour) + str(now.minute) + str(now.second)
+            name_docu = os.path.join(os.getcwd(), 'tempimages', timer + '.jpeg')
+            r, image = cap.read()
+            count+=1
+            cv2.waitKey(200)
+            if count==samplenum:
+                cv2.imwrite(name_docu, image)
+                break
         cap.release()
 
         # import cv2
@@ -652,15 +660,21 @@ def whatsthat():
     except Exception as e:
         print(e)
 
-
 def remember():
 
     try:
         # set camera resolution
-        name_docu = 'tempface.jpeg'
+        samplenum=10
+        count=0
         cap = cv2.VideoCapture(0)
-        r, image = cap.read()
-        cv2.imwrite(name_docu, image)
+        while True:
+            name_docu = 'tempface.jpeg'
+            r, image = cap.read()
+            count+=1
+            cv2.waitKey(200)
+            if count==samplenum:
+                cv2.imwrite(name_docu, image)
+                break
         cap.release()
 
         image_port = face_recognition.load_image_file(name_docu)
@@ -867,8 +881,8 @@ def check(text_inlet):
 def news(search_term="Corona"):
     
     try:
-        subscription_key = "89d1fe71a483407caaf64bf59014c094"
-        endpoint = "https://api.bing.microsoft.com"
+        subscription_key = "dc0412028e7949cfa399e9bb832f659e"
+        endpoint = "https://madeye.cognitiveservices.azure.com/"
         search_term="Corona"
         print("Corona")
 
