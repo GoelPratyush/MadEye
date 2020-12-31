@@ -65,7 +65,7 @@ if os.path.exists(os.path.join(os.getcwd(), 'temp.mp3')):
 
 bingMapsKey = 'AjrMuCn_mhj4OpWb0BYeh8foytxO6xpaRwc6v1fUqVCQcDzimbgGwOWTb7xxcrXW'
 tinify.key = "9XjdCVxnjNjqpfsK48qXlwxLhtwDS4pQ"
-cameraResolution = (1024, 768)
+
 
 def internet(host="8.8.8.8", port=53, timeout=3):
     try:
@@ -613,11 +613,11 @@ def whatsthat():
     try:
         samplenum=10
         count=0
-        cap = cv2.VideoCapture(0)
+        cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
         while True:
             now = datetime.datetime.now()
             timer = str(now.date()) + str(now.hour) + str(now.minute) + str(now.second)
-            name_docu = os.path.join(os.getcwd(), 'tempimages', timer + '.jpeg')
+            name_docu = os.path.join(os.getcwd(), 'tempimages', timer + '.png')
             r, image = cap.read()
             count+=1
             cv2.waitKey(200)
@@ -630,25 +630,20 @@ def whatsthat():
         # img = cv2.imread('makeharvard.png')
         # cv2.imwrite(timer+'.jpeg',img)
 
-        source = tinify.from_file(os.path.join(os.getcwd(), 'tempimages', timer + '.jpeg'))
+        source = tinify.from_file(os.path.join(os.getcwd(), 'tempimages', timer + '.png'))
         url = source.url
 
         # Get region and key from environment variables
 
-        region = 'southeastasia'
-        key = '90fbc93a198546baa5a8d9de2dec3bee'
-
-        # Set credentials
-        credentials = CognitiveServicesCredentials(key)
-
+        subscription_key="a4022d424e8148f5916655d9da342cfb"
+        endpoint="https://madeyecv.cognitiveservices.azure.com/"
         # Create client
-        client = ComputerVisionClient(region, credentials=credentials)
+        client = ComputerVisionClient(endpoint, CognitiveServicesCredentials(subscription_key))
         # url = "http://www.public-domain-photos.com/free-stock-photos-4/travel/san-francisco/golden-gate-bridge-in-san-francisco.jpg"
         language = "en"
         max_descriptions = str(3)
-
         analysis = client.describe_image(url, max_descriptions, language)
-
+        print(analysis)
         if len(analysis.captions) > 0:
             captionn = analysis.captions[0].text
             print(captionn)
@@ -666,9 +661,9 @@ def remember():
         # set camera resolution
         samplenum=10
         count=0
-        cap = cv2.VideoCapture(0)
+        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         while True:
-            name_docu = 'tempface.jpeg'
+            name_docu = 'tempface.png'
             r, image = cap.read()
             count+=1
             cv2.waitKey(200)
@@ -693,7 +688,7 @@ def remember():
                 save_speech('nameOfPerson')
                 name_person = speech2text()
                 name_person.replace('.','')
-                pil_image.save(os.path.join(os.getcwd(), 'folder_images', name_person + '.jpeg'))
+                pil_image.save(os.path.join(os.getcwd(), 'folder_images', name_person + '.png'))
 
         else:
 
@@ -715,15 +710,20 @@ def whoisthat():
             known_face_encodings.append(shaaran_encoding)
             known_face_names.append(os.path.splitext(i)[0])
 
-        cameraResolution = (1024, 768)
-
-        name_docu = 'tempface.jpeg'
-        cap = cv2.VideoCapture(0)
-        r, image = cap.read()
-        cv2.imwrite(name_docu, image)
+        samplenum=10
+        count=0
+        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        while True:
+            name_docu = 'tempface.png'
+            r, image = cap.read()
+            count+=1
+            cv2.waitKey(200)
+            if count==samplenum:
+                cv2.imwrite(name_docu, image)
+                break
         cap.release()
 
-        rgb_small_frame = cv2.imread("tempface.jpeg")
+        rgb_small_frame = cv2.imread("tempface.png")
         face_locations = face_recognition.face_locations(rgb_small_frame)
         face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
         face_landmarks_list = face_recognition.face_landmarks(rgb_small_frame)
@@ -753,13 +753,13 @@ def whoisthat():
 
 def facts():
 
-    subscription_key = '90fbc93a198546baa5a8d9de2dec3bee'
+    subscription_key = '5839808ac1ff42edbc24121bc4bd0420'
     from azure.cognitiveservices.search.entitysearch import EntitySearchClient
     from azure.cognitiveservices.search.entitysearch.models import Place, ErrorResponseException
     from msrest.authentication import CognitiveServicesCredentials
 
     
-    endpoint = "https://madeye.cognitiveservices.azure.com"
+    endpoint = "https://api.bing.microsoft.com/v7.0/entities"
     client = EntitySearchClient(endpoint=endpoint, credentials=CognitiveServicesCredentials(subscription_key))
     
     save_speech('answer')
@@ -793,16 +793,12 @@ def facts():
 
 def readit():
     try:
-        region = 'southeastasia'
-        key = '90fbc93a198546baa5a8d9de2dec3bee'
-
-        # Set credentials
-        credentials = CognitiveServicesCredentials(key)
-
+        subscription_key="a4022d424e8148f5916655d9da342cfb"
+        endpoint="https://madeyecv.cognitiveservices.azure.com/"
         # Create client
-        client = ComputerVisionClient(region, credentials=credentials)
+        client = ComputerVisionClient(endpoint, CognitiveServicesCredentials(subscription_key))
 
-        name_docu = 'tempread.jpeg'
+        name_docu = 'tempread.png'
         cap = cv2.VideoCapture(0)
         r, image = cap.read()
         cv2.imwrite(name_docu, image)
@@ -878,34 +874,34 @@ def check(text_inlet):
         pass
 
 
-def news(search_term="Corona"):
+def news(search_term=None):
     
     try:
-        subscription_key = "dc0412028e7949cfa399e9bb832f659e"
-        endpoint = "https://madeye.cognitiveservices.azure.com/"
-        search_term="Corona"
-        print("Corona")
+        subscription_key = "53977e3fbf6a412e995f5513896339e2"
+        search_url = "https://api.bing.microsoft.com/v7.0/news/search"
 
         if search_term == None:
             save_speech('newsspeak')
             speech = speech2text()
             search_term = check(speech)
-
-        client = NewsSearchClient(endpoint=endpoint,credentials=CognitiveServicesCredentials(subscription_key))
-        news_result = client.news.search(query=search_term, market="en-us", count=10)
+        
+        headers = {"Ocp-Apim-Subscription-Key" : subscription_key}
+        params  = {"q": search_term, "textDecorations": True}
+        response = requests.get(search_url, headers=headers, params=params)
+        news_result = json.loads(response.text)
         print(news_result)
         closer = False
 
-        if news_result.value:
-            for k in news_result.value:
-                modular_speech(k.name)
+        if news_result['value']:
+            for k in news_result['value']:
+                modular_speech(k['name'])
 
                 while True:
                     if keyboard.is_pressed('a'):
                         break
 
                     if keyboard.is_pressed('s'):
-                        modular_speech(k.description)
+                        modular_speech(k['description'])
                         sleep(1)
                         break
 
