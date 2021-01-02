@@ -35,7 +35,7 @@ import json
 from PIL import Image
 import cv2
 from azure.cognitiveservices.vision.computervision.models import VisualFeatureTypes
-import keyboard
+from pynput import keyboard
 import time
 import subprocess
 import soundfile as sf
@@ -66,6 +66,68 @@ if os.path.exists(os.path.join(os.getcwd(), 'temp.mp3')):
 bingMapsKey = 'AjrMuCn_mhj4OpWb0BYeh8foytxO6xpaRwc6v1fUqVCQcDzimbgGwOWTb7xxcrXW'
 tinify.key = "9XjdCVxnjNjqpfsK48qXlwxLhtwDS4pQ"
 
+def on_release_d(key):
+    try:
+        print('{0} released'.format(key))
+        if key.char == 'd':
+            # Stop listener
+            return False
+    except AttributeError:
+        print('special key {0} pressed'.format(key))
+
+
+def on_release_generic(key):
+    try:
+        print('{0} released'.format(key))
+        if key.char == 'a':
+            return False
+        elif key.char == 's':
+            global opener
+            opener = True
+            return False
+        elif key.char == 'q':
+            speak_label('goodbye')
+            exit(0)
+        elif key.char == 'o':
+            voiceassist()
+            return False
+    except AttributeError:
+        print('special key {0} pressed'.format(key))
+
+def on_release_news(key):
+    try:
+        print('{0} released'.format(key))
+        if key.char == 'a':
+            state = 1
+        elif key.char == 's':
+            state = 2
+        elif key.char == 'd':
+            state = 3
+        elif key.char == 'q':
+            state = 4
+        return False
+    except AttributeError:
+        print('special key {0} pressed'.format(key))  
+
+def on_release_sd(key):
+    try:
+        print('{0} released'.format(key))
+        if key.char == 's':
+            state = 1
+        elif key.char == 'd':
+            state = 2
+        return False
+    except AttributeError:
+        print('special key {0} pressed'.format(key))
+    # if keyboard.is_pressed('s') == 0:
+    #     if int(main_dist[0]) < 10:
+    #         modular_speech(directions[1])
+    #     else:
+    #         modular_speech(directions[0])
+
+    # if keyboard.is_pressed('d') == 0:
+    #     break
+
 
 def internet(host="8.8.8.8", port=53, timeout=3):
     try:
@@ -82,10 +144,19 @@ def playerasync():
 
 
 def checker():
-    time_start = time.time()
-    while sound_dur > (time.time() - time_start) :
-        if keyboard.is_pressed('d'):
-            break
+    # time_start = time.time()
+    with keyboard.Events() as events:
+        # Block at most one second
+        event = events.get(sound_dur)
+        if event is None:
+            print('You did not press a key within {0} time'.format(sound_dur))
+        else:
+            with keyboard.Listener(on_release=on_release_d) as listener:
+                listener.join()
+
+    # while sound_dur > (time.time() - time_start) :
+        # if keyboard.is_pressed('d'):
+        #     break
 
 class TextToSpeech(object):
     def __init__(self, subscription_key, texty):
@@ -183,19 +254,21 @@ def modular_speech(text):
 def speak_label(mytext):
     playsound.playsound(os.path.join(os.getcwd(), 'tempaud', mytext + '.mp3'))
     # speak
-    while True:
+    with keyboard.Listener(on_release=on_release_generic) as listener:
+        listener.join()
+    # while True:
 
-        if keyboard.is_pressed('a'):
-            break
-        if keyboard.is_pressed('s'):
-            global opener
-            opener = True
-            break
-        if keyboard.is_pressed('q'):
-            speak_label('goodbye')
-            exit()
-        if keyboard.is_pressed('o'):
-            voiceassist()
+    #     if keyboard.is_pressed('a'):
+    #         break
+    #     if keyboard.is_pressed('s'):
+    #         global opener
+    #         opener = True
+    #         break
+    #     if keyboard.is_pressed('q'):
+    #         speak_label('goodbye')
+    #         exit()
+    #     if keyboard.is_pressed('o'):
+    #         voiceassist()
 
 
 def naviagtor(mlon, mlat, loc):
@@ -249,31 +322,40 @@ def naviagtor(mlon, mlat, loc):
             # print(directions)
 
             prevlen = len(directions)
-
-            if keyboard.is_pressed('s') == 0:
+            global state
+            state=0
+            with keyboard.Listener(on_release=on_release_sd) as listener:
+                listener.join()
+            if state == 1:
                 if int(main_dist[0]) < 10:
                     modular_speech(directions[1])
                 else:
                     modular_speech(directions[0])
 
-            if keyboard.is_pressed('d') == 0:
+            if state == 2:
                 break
-
+            
+            del state
             num = 4
 
             # since average human walking speed is 1.6m per second
             start = time.time()
             while 1:
+                with keyboard.Listener(on_release=on_release_sd) as listener:
+                    listener.join()
+
+                state = 0
                 if (time.time() - start) > num:
                     break
-                if keyboard.is_pressed('s') == 0:
+                if state == 1:
                     if int(main_dist[0]) < 10:
                         modular_speech(directions[1])
                     else:
                         modular_speech(directions[0])
 
-                if keyboard.is_pressed('d') == 0:
+                if state == 2:
                     break
+            del state
 
     except Exception:
         pass
@@ -613,7 +695,7 @@ def whatsthat():
     try:
         samplenum=10
         count=0
-        cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
+        cap = cv2.VideoCapture(0)
         while True:
             now = datetime.datetime.now()
             timer = str(now.date()) + str(now.hour) + str(now.minute) + str(now.second)
@@ -661,7 +743,7 @@ def remember():
         # set camera resolution
         samplenum=10
         count=0
-        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        cap = cv2.VideoCapture(0)
         while True:
             name_docu = 'tempface.png'
             r, image = cap.read()
@@ -712,7 +794,7 @@ def whoisthat():
 
         samplenum=10
         count=0
-        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        cap = cv2.VideoCapture(0)
         while True:
             name_docu = 'tempface.png'
             r, image = cap.read()
@@ -895,23 +977,26 @@ def news(search_term=None):
         if news_result['value']:
             for k in news_result['value']:
                 modular_speech(k['name'])
+                global state
+                state=0
+                with keyboard.Listener(on_release=on_release_news) as listener:
+                    listener.join()
 
-                while True:
-                    if keyboard.is_pressed('a'):
-                        break
+                if state == 1:
+                    break
 
-                    if keyboard.is_pressed('s'):
-                        modular_speech(k['description'])
-                        sleep(1)
-                        break
+                elif state == 2:
+                    modular_speech(k['description'])
+                    sleep(1)
+                    break
 
-                    if keyboard.is_pressed('d'):
-                        closer = True
-                        break
+                elif state == 3:
+                    closer = True
+                    break
 
-                    if keyboard.is_pressed('q'):
-                        speak_label('goodbye')
-                        exit()
+                elif state == 4:
+                    speak_label('goodbye')
+                    exit()
 
                 if closer == True:
                     break
