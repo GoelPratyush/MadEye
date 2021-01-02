@@ -42,6 +42,7 @@ import soundfile as sf
 import pyttsx3
 import socket
 import connect_to_internet
+import sys
 
 if os.path.exists(os.path.join(os.getcwd(), 'folder_images')):
     pass
@@ -65,6 +66,7 @@ if os.path.exists(os.path.join(os.getcwd(), 'temp.mp3')):
 
 bingMapsKey = 'AjrMuCn_mhj4OpWb0BYeh8foytxO6xpaRwc6v1fUqVCQcDzimbgGwOWTb7xxcrXW'
 tinify.key = "9XjdCVxnjNjqpfsK48qXlwxLhtwDS4pQ"
+state = 0
 
 def on_release_d(key):
     try:
@@ -87,7 +89,7 @@ def on_release_generic(key):
             return False
         elif key.char == 'q':
             speak_label('goodbye')
-            exit(0)
+            sys.exit()
         elif key.char == 'o':
             voiceassist()
             return False
@@ -96,37 +98,35 @@ def on_release_generic(key):
 
 def on_release_news(key):
     try:
+        global state
         print('{0} released'.format(key))
         if key.char == 'a':
             state = 1
+            return False
         elif key.char == 's':
             state = 2
+            return False
         elif key.char == 'd':
             state = 3
+            return False
         elif key.char == 'q':
             state = 4
-        return False
+            return False
     except AttributeError:
         print('special key {0} pressed'.format(key))  
 
 def on_release_sd(key):
     try:
+        global state
         print('{0} released'.format(key))
         if key.char == 's':
             state = 1
+            return False
         elif key.char == 'd':
             state = 2
-        return False
+            return False
     except AttributeError:
         print('special key {0} pressed'.format(key))
-    # if keyboard.is_pressed('s') == 0:
-    #     if int(main_dist[0]) < 10:
-    #         modular_speech(directions[1])
-    #     else:
-    #         modular_speech(directions[0])
-
-    # if keyboard.is_pressed('d') == 0:
-    #     break
 
 
 def internet(host="8.8.8.8", port=53, timeout=3):
@@ -153,10 +153,8 @@ def checker():
         else:
             with keyboard.Listener(on_release=on_release_d) as listener:
                 listener.join()
+        print("Press Now")
 
-    # while sound_dur > (time.time() - time_start) :
-        # if keyboard.is_pressed('d'):
-        #     break
 
 class TextToSpeech(object):
     def __init__(self, subscription_key, texty):
@@ -244,7 +242,7 @@ def modular_speech(text):
         proc = subprocess.Popen(['python', 'speech_init.py', uid])
         checker()
         proc.kill()
-        sleep(1)
+        sleep(0.5)
 
 
     except Exception as e:
@@ -256,19 +254,6 @@ def speak_label(mytext):
     # speak
     with keyboard.Listener(on_release=on_release_generic) as listener:
         listener.join()
-    # while True:
-
-    #     if keyboard.is_pressed('a'):
-    #         break
-    #     if keyboard.is_pressed('s'):
-    #         global opener
-    #         opener = True
-    #         break
-    #     if keyboard.is_pressed('q'):
-    #         speak_label('goodbye')
-    #         exit()
-    #     if keyboard.is_pressed('o'):
-    #         voiceassist()
 
 
 def naviagtor(mlon, mlat, loc):
@@ -322,7 +307,6 @@ def naviagtor(mlon, mlat, loc):
             # print(directions)
 
             prevlen = len(directions)
-            global state
             state=0
             with keyboard.Listener(on_release=on_release_sd) as listener:
                 listener.join()
@@ -335,7 +319,6 @@ def naviagtor(mlon, mlat, loc):
             if state == 2:
                 break
             
-            del state
             num = 4
 
             # since average human walking speed is 1.6m per second
@@ -355,7 +338,6 @@ def naviagtor(mlon, mlat, loc):
 
                 if state == 2:
                     break
-            del state
 
     except Exception:
         pass
@@ -977,18 +959,16 @@ def news(search_term=None):
         if news_result['value']:
             for k in news_result['value']:
                 modular_speech(k['name'])
-                global state
-                state=0
                 with keyboard.Listener(on_release=on_release_news) as listener:
                     listener.join()
 
                 if state == 1:
-                    break
+                    continue
 
                 elif state == 2:
                     modular_speech(k['description'])
-                    sleep(1)
-                    break
+                    sleep(0.5)
+                    continue
 
                 elif state == 3:
                     closer = True
@@ -996,17 +976,12 @@ def news(search_term=None):
 
                 elif state == 4:
                     speak_label('goodbye')
-                    exit()
+                    sys.exit()
 
-                if closer == True:
-                    break
-
-                else:
-                    pass
 
         else:
             save_speech("nonews")
-
+        
     except Exception as e:
         print(e)
         save_speech('unknownError')
@@ -1034,6 +1009,7 @@ def main():
             # button_ok   = s
             # button_back = d
 
+            print("Weather")
             speak_label('weather')
             if opener == True:
                 weather()
@@ -1041,13 +1017,15 @@ def main():
             else:
                 pass
 
+            print("Clock")
             speak_label('clock')
             if opener == True:
                 clock()
                 opener = False
             else:
                 pass
-
+            
+            print("Directions!")
             speak_label('directions')
             if opener == True:
                 directions()
@@ -1055,6 +1033,7 @@ def main():
             else:
                 pass
 
+            print("Uber!")
             speak_label('uber')
             if opener == True:
                 uber()
@@ -1062,6 +1041,7 @@ def main():
             else:
                 pass
 
+            print("What's that?")
             speak_label('whatsthat')
             if opener == True:
                 whatsthat()
@@ -1069,6 +1049,7 @@ def main():
             else:
                 pass
 
+            print("Remenber")
             speak_label('remember')
             if opener == True:
                 remember()
@@ -1076,6 +1057,7 @@ def main():
             else:
                 pass
 
+            print("Who's that?")
             speak_label('whosthat')
             if opener == True:
                 whoisthat()
@@ -1083,6 +1065,7 @@ def main():
             else:
                 pass
 
+            print("Facts!")
             speak_label('facts')
             if opener == True:
                 facts()
@@ -1090,6 +1073,7 @@ def main():
             else:
                 pass
 
+            print("Read it!")
             speak_label('readIt')
             if opener == True:
                 readit()
@@ -1097,6 +1081,7 @@ def main():
             else:
                 pass
 
+            print("News")
             speak_label('news')
             if opener == True:
                 news()
@@ -1105,6 +1090,7 @@ def main():
                 pass
 
     except KeyboardInterrupt:
+        sys.exit()
         pass
 
 
@@ -1113,4 +1099,5 @@ if __name__ == "__main__":
         # device = get_device()
         main()
     except KeyboardInterrupt:
+        sys.exit()
         pass
