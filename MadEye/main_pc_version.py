@@ -404,6 +404,16 @@ def currentad():
     except Exception:
         pass
 
+def currentip():
+    try:
+        send_url = "http://api.ipstack.com/check?access_key=c687e4498fc801d7a66e9b42fb2f6e50"
+        geo_req = requests.get(send_url)
+        geo_json = json.loads(geo_req.text)
+        ip = geo_json['ip']
+        return ip
+    except Exception:
+        pass
+
 def directions():
     try:
         save_speech('whereDoYouWantToGo')
@@ -768,41 +778,30 @@ def whoisthat():
 
 def facts():
 
-    from azure.cognitiveservices.search.entitysearch.models import Place, ErrorResponseException
-    from msrest.authentication import CognitiveServicesCredentials
-
     subscription_key = "53977e3fbf6a412e995f5513896339e2"
-    search_url = "https://api.bing.microsoft.com/v7.0/search"
+    host = 'api.bing.microsoft.com'
+    path = '/v7.0/search'
 
     save_speech('answer')
     query = speech2text()
+    mkt = 'en-US'
         
-    headers = {"Ocp-Apim-Subscription-Key" : subscription_key}
-    params  = {"q": query, "textDecorations": True}
-    response = requests.get(search_url, headers=headers, params=params)
-    entity_data = json.loads(response.text)
-    
-    
-
-    if entity_data.entities.value:
-
-        main_entities = [entity for entity in entity_data.entities.value if entity.entity_presentation_info.entity_scenario == "DominantEntity"]
-
-        if main_entities:
-            print(main_entities[0].description)
+    headers = {"Ocp-Apim-Subscription-Key" : subscription_key, "X-MSEdge-ClientIP":currentip()}
+    params = '?mkt=' + mkt + '&q=' + urllib.parse.quote (query)
+    conn = http.client.HTTPSConnection (host)
+    conn.request ("GET", path + params, None, headers)
+    response = conn.getresponse ()
+    entity_data = json.loads(response.read())
+    print(entity_data)
 
     try:
-
-        entity_data = client.entities.search(query='speech')
-        if entity_data.entities.value:
-
-            main_entities = [entity for entity in entity_data.entities.value
-                             if entity.entity_presentation_info.entity_scenario == "DominantEntity"]
-
+        if entity_data['entities']['value']:
+            main_entities = [entity for entity in entity_data['entities']['value'] if entity['entityPresentationInfo']['entityScenario'] == "DominantEntity"]
             if main_entities:
-                main_string = main_entities[0].description
+                main_string = main_entities[0]['description']
+                print(main_string)
                 modular_speech(main_string)
-
+                
     except AttributeError:
         save_speech('unknownError')
 
@@ -898,7 +897,6 @@ def news(search_term=None):
         params  = {"q": search_term, "textDecorations": True}
         response = requests.get(search_url, headers=headers, params=params)
         news_result = json.loads(response.text)
-        closer = False
 
         if news_result['value']:
             for k in news_result['value']:
@@ -947,7 +945,7 @@ def main():
                     pass
                 else:
                     connect_to_internet.main()
-                    
+
             # button_next = a
             # button_ok   = s
             # button_back = d
