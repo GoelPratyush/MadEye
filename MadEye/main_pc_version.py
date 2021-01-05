@@ -43,6 +43,7 @@ import pyttsx3
 import socket
 import connect_to_internet
 import sys
+import geocoder
 
 if os.path.exists(os.path.join(os.getcwd(), 'folder_images')):
     pass
@@ -89,7 +90,7 @@ def on_release_generic(key):
             return False
         elif key.char == 'q':
             speak_label('goodbye')
-            sys.exit()
+            os._exit(os.EX_OK)
         elif key.char == 'o':
             voiceassist()
             return False
@@ -423,12 +424,13 @@ def save_speech(mytext):
 
 def currentad():
     try:
-        send_url = "http://api.ipstack.com/check?access_key=c687e4498fc801d7a66e9b42fb2f6e50"
-        geo_req = requests.get(send_url)
-        geo_json = json.loads(geo_req.text)
-        latitude = geo_json['latitude']
-        longitude = geo_json['longitude']
-        return [latitude, longitude]
+        # send_url = "http://api.ipstack.com/check?access_key=c687e4498fc801d7a66e9b42fb2f6e50"
+        # geo_req = requests.get(send_url)
+        # geo_json = json.loads(geo_req.text)
+        # latitude = geo_json['latitude']
+        # longitude = geo_json['longitude']
+        # return [latitude, longitude]
+        return geocoder.ip('me').latlng
     except Exception:
         pass
 
@@ -976,7 +978,7 @@ def news(search_term=None):
 
                 elif state == 4:
                     speak_label('goodbye')
-                    sys.exit()
+                    os._exit(os.EX_OK)
 
 
         else:
@@ -1090,7 +1092,7 @@ def main():
                 pass
 
     except KeyboardInterrupt:
-        sys.exit()
+        os._exit(os.EX_OK)
         pass
 
 
@@ -1099,5 +1101,5 @@ if __name__ == "__main__":
         # device = get_device()
         main()
     except KeyboardInterrupt:
-        sys.exit()
+        os._exit(os.EX_OK)
         pass
