@@ -6,12 +6,11 @@ import tinify
 import datetime
 import random as rand
 from xml.etree import ElementTree
-from azure.cognitiveservices.search.newssearch import NewsSearchClient
 import re
 from azure.cognitiveservices.vision.computervision import ComputerVisionClient
+from azure.cognitiveservices.vision.computervision.models import OperationStatusCodes
 from msrest.authentication import CognitiveServicesCredentials
-from urllib.parse import parse_qs
-from urllib.parse import urlparse
+import http.client, urllib.parse
 from builtins import input
 from utils import create_uber_client
 from utils import fail_print
@@ -44,6 +43,9 @@ import socket
 import connect_to_internet
 import sys
 import geocoder
+import dlib
+import imutils
+from imutils.face_utils import FaceAligner
 
 if os.path.exists(os.path.join(os.getcwd(), 'folder_images')):
     pass
@@ -90,7 +92,7 @@ def on_release_generic(key):
             return False
         elif key.char == 'q':
             speak_label('goodbye')
-            os._exit(os.EX_OK)
+            os._exit(0)
         elif key.char == 'o':
             voiceassist()
             return False
@@ -135,19 +137,16 @@ def internet(host="8.8.8.8", port=53, timeout=3):
         socket.setdefaulttimeout(timeout)
         socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
         return True
-    except Exception as ex:
+    except Exception as e:
+        print(e)
         return False
 
 def playerasync():
-    # playsound.playsound(os.path.join(os.getcwd(), 'majortempaud', '2019-03-0725129' + '.wav'),False)
-    # print('j')
     subprocess.run(['python', 'speech_init.py'])
 
 
 def checker():
-    # time_start = time.time()
     with keyboard.Events() as events:
-        # Block at most one second
         event = events.get(sound_dur)
         if event is None:
             print('You did not press a key within {0} time'.format(sound_dur))
@@ -186,7 +185,7 @@ def save_audio(self, uid):
     xml_body.set('{http://www.w3.org/XML/1998/namespace}lang', 'en-IN')
     voice = ElementTree.SubElement(xml_body, 'voice')
     voice.set('{http://www.w3.org/XML/1998/namespace}lang', 'en-IN')
-    voice.set('name', 'Microsoft Server Speech Text to Speech Voice (en-IN, PrabhatNeural)')
+    voice.set('name', 'Microsoft Server Speech Text to Speech Voice (en-IN, NeerjaNeural)')
     voice.text = self.tts
     body = ElementTree.tostring(xml_body)
 
@@ -210,13 +209,11 @@ def clock():
         print(e)
 
 def voiceassist():
-
     try:
         urly = 'https://australiaeast.api.cognitive.microsoft.com/luis/prediction/v3.0/apps/4a8d7554-ab53-4710-b45a-47b86b038067/slots/staging/predict?subscription-key=ccf815c9d447441782073e716f6558ff&verbose=true&show-all-intents=true&log=true&query='
         save_speech(rand.choice(['greet1','greet2','greet3','greet4']))
         request_said = speech2text()
         response = urllib.request.urlopen(urly + urllib.parse.quote(request_said, safe='')).read().decode('utf-8')
-        # Loads response as JSON
         weathery = json.loads(response)
         intent_classified = weathery['prediction']['topIntent']
         eval(intent_classified + '()')
@@ -225,9 +222,6 @@ def voiceassist():
         print(e)
         save_speech('unknownError')
         pass
-
-
-
 
 def modular_speech(text):
     try:
@@ -243,34 +237,25 @@ def modular_speech(text):
         proc = subprocess.Popen(['python', 'speech_init.py', uid])
         checker()
         proc.kill()
-        sleep(0.5)
-
+        sleep(1)
 
     except Exception as e:
         print(e)
 
-
 def speak_label(mytext):
     playsound.playsound(os.path.join(os.getcwd(), 'tempaud', mytext + '.mp3'))
-    # speak
     with keyboard.Listener(on_release=on_release_generic) as listener:
         listener.join()
 
-
 def naviagtor(mlon, mlat, loc):
-
     try:
         prevlen = 0
-
         while 1:
-
             # input information
             longitude = mlon
             latitude = mlat
             destination = str(loc)
-
             encodedDest = urllib.parse.quote(destination, safe='')
-
             routeUrl = "http://dev.virtualearth.net/REST/V1/Routes/Driving?wp.0=" + str(latitude) + "," + str(
                 longitude) + "&wp.1=" + encodedDest + "&key=" + bingMapsKey
 
@@ -349,22 +334,17 @@ def location(address):
         addresses = pyap.parse(address, country='IN')
         return addresses[0]
 
-    except Exception:
+    except Exception as e:
+        print(e)
         pass
-
-
-# location('can you direct me to talwandi, kota')
 
 def speech2text():
     speech_key, service_region = "0e87f4dde3cf4c3f927f2f8227dbd833", "centralindia"
     speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
 
-    # Creates a recognizer with the given settings
     speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config)
-
     result = speech_recognizer.recognize_once()
 
-    # Checks result.
     if result.reason == speechsdk.ResultReason.RecognizedSpeech:
         print("Recognized: {}".format(result.text))
         return result.text
@@ -378,7 +358,6 @@ def speech2text():
             print("Error details: {}".format(cancellation_details.error_details))
         return 'None'
 
-
 def find_loc_address(address):
 
     try:
@@ -390,14 +369,11 @@ def find_loc_address(address):
         result = json.loads(r)
         res_Check = result["resourceSets"][0]["resources"][0]['geocodePoints'][1]['coordinates']
         return res_Check
-        # print(json.dumps(res_Check, indent=2))
 
     except Exception:
         pass
 
-
-
-def currentad_seletest():
+def my_current_location():
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options
     from selenium.webdriver.support.ui import WebDriverWait
@@ -405,62 +381,66 @@ def currentad_seletest():
     chrome_options = Options()
     chrome_options.add_argument("--use-fake-ui-for-media-stream")
     timeout = 20
-    driver = webdriver.Chrome(chrome_options=chrome_options)
+    driver = webdriver.Chrome(executable_path = './chromedriver.exe',options=chrome_options)
     driver.get("https://mycurrentlocation.net/")
     wait = WebDriverWait(driver, timeout)
     longitude = driver.find_elements_by_xpath('//*[@id="longitude"]')
     longitude = [x.text for x in longitude]
-    longitude = str(longitude[0])
+    longitude = float(longitude[0])
     latitude = driver.find_elements_by_xpath('//*[@id="latitude"]')
     latitude = [x.text for x in latitude]
-    latitude = str(latitude[0])
+    latitude = float(latitude[0])
     driver.quit()
-    return (latitude, longitude)
+    return [latitude, longitude]
 
 
 def save_speech(mytext):
     playsound.playsound(os.path.join(os.getcwd(), 'tempaud', mytext + '.mp3'))
 
+# def currentad():
+#     try:
+#         send_url = "http://api.ipstack.com/check?access_key=c687e4498fc801d7a66e9b42fb2f6e50"
+#         geo_req = requests.get(send_url)
+#         geo_json = json.loads(geo_req.text)
+#         latitude = geo_json['latitude']
+#         longitude = geo_json['longitude']
+#         return [latitude, longitude]
+#         return geocoder.ip('me').latlng
+#     except Exception:
+#         pass
 
-def currentad():
+def currentip():
     try:
-        # send_url = "http://api.ipstack.com/check?access_key=c687e4498fc801d7a66e9b42fb2f6e50"
-        # geo_req = requests.get(send_url)
-        # geo_json = json.loads(geo_req.text)
-        # latitude = geo_json['latitude']
-        # longitude = geo_json['longitude']
-        # return [latitude, longitude]
-        return geocoder.ip('me').latlng
+        send_url = "http://api.ipstack.com/check?access_key=c687e4498fc801d7a66e9b42fb2f6e50"
+        geo_req = requests.get(send_url)
+        geo_json = json.loads(geo_req.text)
+        ip = geo_json['ip']
+        return ip
     except Exception:
         pass
 
-
-def directions():
+def directions(latitude, longitude):
     try:
-        # lat,lon = find_loc_address('1427 Alderbrook Ln San Jose CA 95129')
         save_speech('whereDoYouWantToGo')
         speech = speech2text()
-        mlat, mlon = currentad()
         try:
             loc = location(speech)
         except IndexError:
             loc = speech
-        naviagtor(mlon, mlat, loc)
+        naviagtor(latitude, longitude, loc)
     except Exception as e:
         print(e)
         save_speech('error')
 
 
-def weather():
+def weather(latitude, longitude):
     try:
-        latt, longi = currentad()
         endpoint = 'http://api.openweathermap.org/data/2.5/weather?'
         api_key = 'e33c84cc9eb1157c533611a494f638a3'
-        nav_request = 'lat={}&lon={}&APPID={}'.format(latt, longi, api_key)
+        nav_request = 'lat={}&lon={}&APPID={}'.format(latitude, longitude, api_key)
         request = endpoint + nav_request
         # Sends the request and reads the response.
         response = urllib.request.urlopen(request).read().decode('utf-8')
-        # Loads response as JSON
         weather = json.loads(response)
         current_temp = weather['main']['temp']
         temp_c = current_temp - 273.15
@@ -472,7 +452,7 @@ def weather():
         print(e)
 
 
-def uber():
+def uber(latitude, longitude):
     try:
         UFP_PRODUCT_ID = '26546650-e557-4a7b-86e7-6a3942445247'
 
@@ -480,7 +460,6 @@ def uber():
 
         save_speech('whereDoYouWantToGo')
         speech = speech2text()
-        START_LAT, START_LNG = currentad()
         try:
             loc = location(speech)
         except IndexError:
@@ -493,8 +472,8 @@ def uber():
             try:
                 estimate = api_client.estimate_ride(
                     product_id=SURGE_PRODUCT_ID,
-                    start_latitude=START_LAT,
-                    start_longitude=START_LNG,
+                    start_latitude=latitude,
+                    start_longitude=longitude,
                     end_latitude=END_LAT,
                     end_longitude=END_LNG,
                     seat_count=2
@@ -539,8 +518,8 @@ def uber():
 
                 estimate = api_client.estimate_ride(
                     product_id=UFP_PRODUCT_ID,
-                    start_latitude=START_LAT,
-                    start_longitude=START_LNG,
+                    start_latitude=latitude,
+                    start_longitude=longitude,
                     end_latitude=END_LAT,
                     end_longitude=END_LNG,
                     seat_count=2
@@ -549,8 +528,8 @@ def uber():
 
                 request = api_client.request_ride(
                     product_id=UFP_PRODUCT_ID,
-                    start_latitude=START_LAT,
-                    start_longitude=START_LNG,
+                    start_latitude=latitude,
+                    start_longitude=longitude,
                     end_latitude=END_LAT,
                     end_longitude=END_LNG,
                     seat_count=2,
@@ -571,8 +550,8 @@ def uber():
             try:
                 request = api_client.request_ride(
                     product_id=SURGE_PRODUCT_ID,
-                    start_latitude=START_LAT,
-                    start_longitude=START_LNG,
+                    start_latitude=latitude,
+                    start_longitude=longitude,
                     end_latitude=END_LAT,
                     end_longitude=END_LNG,
                     surge_confirmation_id=surge_confirmation_id,
@@ -674,7 +653,6 @@ def uber():
     except Exception:
         pass
 
-
 def whatsthat():
     try:
         samplenum=10
@@ -683,7 +661,7 @@ def whatsthat():
         while True:
             now = datetime.datetime.now()
             timer = str(now.date()) + str(now.hour) + str(now.minute) + str(now.second)
-            name_docu = os.path.join(os.getcwd(), 'tempimages', timer + '.png')
+            name_docu = os.path.join(os.getcwd(), 'tempimages', timer + 'og')
             r, image = cap.read()
             count+=1
             cv2.waitKey(200)
@@ -691,21 +669,13 @@ def whatsthat():
                 cv2.imwrite(name_docu, image)
                 break
         cap.release()
-
-        # import cv2
-        # img = cv2.imread('makeharvard.png')
-        # cv2.imwrite(timer+'.jpeg',img)
-
-        source = tinify.from_file(os.path.join(os.getcwd(), 'tempimages', timer + '.png'))
+        source = tinify.from_file(os.path.join(os.getcwd(), 'tempimages', timer + '.jpeg'))
         url = source.url
-
-        # Get region and key from environment variables
 
         subscription_key="a4022d424e8148f5916655d9da342cfb"
         endpoint="https://madeyecv.cognitiveservices.azure.com/"
         # Create client
         client = ComputerVisionClient(endpoint, CognitiveServicesCredentials(subscription_key))
-        # url = "http://www.public-domain-photos.com/free-stock-photos-4/travel/san-francisco/golden-gate-bridge-in-san-francisco.jpg"
         language = "en"
         max_descriptions = str(3)
         analysis = client.describe_image(url, max_descriptions, language)
@@ -724,41 +694,39 @@ def whatsthat():
 def remember():
 
     try:
-        # set camera resolution
+        #Loading the HOG detector
+        detector = dlib.get_frontal_face_detector()
+        predictor = dlib.shape_predictor('./shape_predictor_68_face_landmarks.dat')
+        fa = FaceAligner(predictor , desiredFaceWidth = 256)
+
+        #Set sample number so that the camera can open properly and snap the 10th image
         samplenum=10
         count=0
         cap = cv2.VideoCapture(0)
+        name_docu = 'tempface.jpeg'
+        
         while True:
-            name_docu = 'tempface.png'
             r, image = cap.read()
             count+=1
             cv2.waitKey(200)
+            
             if count==samplenum:
-                cv2.imwrite(name_docu, image)
-                break
+                #grayscaling the image
+                gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                faces = detector(gray_img, 0)
+                if faces is None:
+                    save_speech('noFaces')
+                else:
+                    for face in faces:
+                        face_aligned = fa.align(image, gray_img, face)
+                        cv2.imshow("Aligned", face_aligned)
+                        save_speech('nameOfPerson')
+                        name_person = speech2text()
+                        name_person.replace('.','')
+                        cv2.imwrite(os.path.join(os.getcwd(), 'folder_images', name_person + '.jpeg'), face_aligned)
+                    break
+        
         cap.release()
-
-        image_port = face_recognition.load_image_file(name_docu)
-        face_locations = face_recognition.face_locations(image_port)
-        # from PIL import Image
-        # image = Image.open(name_docu)
-
-        if len(face_locations) > 0:
-            # face_location = face_locations = face_recognition.face_locations(image_port)
-
-            for face_location in face_locations:
-                # Print the location of each face in this image
-                top, right, bottom, left = face_location
-                face_image = image[top:bottom, left:right]
-                pil_image = Image.fromarray(face_image)
-                save_speech('nameOfPerson')
-                name_person = speech2text()
-                name_person.replace('.','')
-                pil_image.save(os.path.join(os.getcwd(), 'folder_images', name_person + '.png'))
-
-        else:
-
-            save_speech('noFaces')
 
     except Exception:
         pass
@@ -766,7 +734,6 @@ def remember():
 
 def whoisthat():
     try:
-
         known_face_encodings = []
         known_face_names = []
 
@@ -775,12 +742,11 @@ def whoisthat():
             shaaran_encoding = face_recognition.face_encodings(shaaran_image)[0]
             known_face_encodings.append(shaaran_encoding)
             known_face_names.append(os.path.splitext(i)[0])
-
         samplenum=10
         count=0
         cap = cv2.VideoCapture(0)
+        name_docu = 'tempface.jpeg'
         while True:
-            name_docu = 'tempface.png'
             r, image = cap.read()
             count+=1
             cv2.waitKey(200)
@@ -789,17 +755,15 @@ def whoisthat():
                 break
         cap.release()
 
-        rgb_small_frame = cv2.imread("tempface.png")
+        rgb_small_frame = cv2.imread("tempface.jpeg")
         face_locations = face_recognition.face_locations(rgb_small_frame)
         face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
-        face_landmarks_list = face_recognition.face_landmarks(rgb_small_frame)
-
         face_names = []
         for face_encoding in face_encodings:
 
             matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
             name = "Unknown"
-
+            
             if True in matches:
                 first_match_index = matches.index(True)
                 name = known_face_names[first_match_index]
@@ -812,47 +776,38 @@ def whoisthat():
         if len(face_names) == 0:
             modular_speech('noFaces')
 
-    except Exception:
+    except Exception as e:
+        print(e)
         save_speech('unknownError')
         pass
 
 
 def facts():
 
-    subscription_key = '5839808ac1ff42edbc24121bc4bd0420'
-    from azure.cognitiveservices.search.entitysearch import EntitySearchClient
-    from azure.cognitiveservices.search.entitysearch.models import Place, ErrorResponseException
-    from msrest.authentication import CognitiveServicesCredentials
+    subscription_key = "53977e3fbf6a412e995f5513896339e2"
+    host = 'api.bing.microsoft.com'
+    path = '/v7.0/search'
 
-    
-    endpoint = "https://api.bing.microsoft.com/v7.0/entities"
-    client = EntitySearchClient(endpoint=endpoint, credentials=CognitiveServicesCredentials(subscription_key))
-    
     save_speech('answer')
-    speech = speech2text()
-    print(speech)
-
-    entity_data = client.entities.search(query="Gibralter")
-
-    if entity_data.entities.value:
-
-        main_entities = [entity for entity in entity_data.entities.value if entity.entity_presentation_info.entity_scenario == "DominantEntity"]
-
-        if main_entities:
-            print(main_entities[0].description)
+    query = speech2text()
+    mkt = 'en-US'
+        
+    headers = {"Ocp-Apim-Subscription-Key" : subscription_key, "X-MSEdge-ClientIP":currentip()}
+    params = '?mkt=' + mkt + '&q=' + urllib.parse.quote (query)
+    conn = http.client.HTTPSConnection (host)
+    conn.request ("GET", path + params, None, headers)
+    response = conn.getresponse ()
+    entity_data = json.loads(response.read())
+    print(entity_data)
 
     try:
-
-        entity_data = client.entities.search(query="speech")
-        if entity_data.entities.value:
-
-            main_entities = [entity for entity in entity_data.entities.value
-                             if entity.entity_presentation_info.entity_scenario == "DominantEntity"]
-
+        if entity_data['entities']['value']:
+            main_entities = [entity for entity in entity_data['entities']['value'] if entity['entityPresentationInfo']['entityScenario'] == "DominantEntity"]
             if main_entities:
-                main_string = main_entities[0].description
+                main_string = main_entities[0]['description']
+                print(main_string)
                 modular_speech(main_string)
-
+                
     except AttributeError:
         save_speech('unknownError')
 
@@ -861,45 +816,42 @@ def readit():
     try:
         subscription_key="a4022d424e8148f5916655d9da342cfb"
         endpoint="https://madeyecv.cognitiveservices.azure.com/"
-        # Create client
         client = ComputerVisionClient(endpoint, CognitiveServicesCredentials(subscription_key))
-
-        name_docu = 'tempread.png'
+        samplenum=10
+        count=0
         cap = cv2.VideoCapture(0)
-        r, image = cap.read()
-        cv2.imwrite(name_docu, image)
+        name_docu = 'tempface.jpeg'
+        while True:
+            r, image = cap.read()
+            count+=1
+            cv2.waitKey(200)
+            if count==samplenum:
+                cv2.imwrite(name_docu, image)
+                break
         cap.release()
 
         source = tinify.from_file(os.path.join(os.getcwd(), name_docu))
         url = source.url
-        mode = TextRecognitionMode.handwritten
-        raw = True
-        custom_headers = None
         numberOfCharsInOperationId = 36
 
         save_speech('waitForText')
-
-        # Async SDK call
-        rawHttpResponse = client.recognize_text(url, mode, custom_headers, raw)
-
-        # Get ID from returned headers
+        rawHttpResponse = client.read(url, language="en", raw=True)
         operationLocation = rawHttpResponse.headers["Operation-Location"]
         idLocation = len(operationLocation) - numberOfCharsInOperationId
         operationId = operationLocation[idLocation:]
-
-        result = client.get_text_operation_result(operationId)
-
-        # SDK call
-        while result.status in ['NotStarted', 'Running']:
+        
+        result = client.get_read_result(operationId)
+        print(result)
+        
+        while result.status in [OperationStatusCodes.running, OperationStatusCodes.not_started]:
             time.sleep(1)
-            result = client.get_text_operation_result(operationId)
+            result = client.get_read_result(operationId)
 
-        # Get data
         main_string = ''
 
-        if result.status == TextOperationStatusCodes.succeeded:
+        if result.status == OperationStatusCodes.succeeded:
 
-            for line in result.recognition_result.lines:
+            for line in result.analyze_result.read_results[0].lines:
                 main_string = main_string + ' ' + line.text
 
             main_string = re.sub("!|/|;|:|-", "", main_string)
@@ -908,22 +860,17 @@ def readit():
 
             modular_speech(main_string)
 
-            # sent_token = main_string.split('.')
-            #
-            # for sente in sent_token:
-            #     modular_speech(sente)
-            #     if keyboard.is_pressed('d'):
-            #         break
         else:
             save_speech('unknownError')
 
-    except Exception:
+    except Exception as e:
+        print(e)
         pass
 
 def check(text_inlet):
     try:
-        text_key = '90fbc93a198546baa5a8d9de2dec3bee'
-        text_analytics_base_url = "https://madeye.cognitiveservices.azure.com/text/analytics/v2.0/"
+        text_key = '700e9ea833f047ecba5269c051a382ad'
+        text_analytics_base_url = "https://madeyeta.cognitiveservices.azure.com/text/analytics/v2.1/"
         key_phrase_api_url = text_analytics_base_url + "keyPhrases"
         documents = {'documents': [
             {'id': '1', 'language': 'en',
@@ -936,7 +883,8 @@ def check(text_inlet):
         for i in key_phrases['documents'][0]['keyPhrases']:
             stringy = stringy + ' ' + i
         return stringy
-    except Exception:
+    except Exception as e:
+        print(e)
         pass
 
 
@@ -955,8 +903,6 @@ def news(search_term=None):
         params  = {"q": search_term, "textDecorations": True}
         response = requests.get(search_url, headers=headers, params=params)
         news_result = json.loads(response.text)
-        print(news_result)
-        closer = False
 
         if news_result['value']:
             for k in news_result['value']:
@@ -978,7 +924,7 @@ def news(search_term=None):
 
                 elif state == 4:
                     speak_label('goodbye')
-                    os._exit(os.EX_OK)
+                    os._exit(0)
 
 
         else:
@@ -993,6 +939,10 @@ def main():
     global opener
     opener = False
     count_main = 0
+    print("Please Wait ...")
+    print("Finding your Location")
+    latitude, longitude = my_current_location()
+    print("Current Latitude is " + str(latitude) + " and longitude is " + str(longitude))
     try:
         while True:
 
@@ -1006,7 +956,6 @@ def main():
                 else:
                     connect_to_internet.main()
 
-
             # button_next = a
             # button_ok   = s
             # button_back = d
@@ -1014,7 +963,7 @@ def main():
             print("Weather")
             speak_label('weather')
             if opener == True:
-                weather()
+                weather(latitude, longitude)
                 opener = False
             else:
                 pass
@@ -1030,7 +979,7 @@ def main():
             print("Directions!")
             speak_label('directions')
             if opener == True:
-                directions()
+                directions(latitude, longitude)
                 opener = False
             else:
                 pass
@@ -1038,7 +987,7 @@ def main():
             print("Uber!")
             speak_label('uber')
             if opener == True:
-                uber()
+                uber(latitude, longitude)
                 opener = False
             else:
                 pass
@@ -1051,7 +1000,7 @@ def main():
             else:
                 pass
 
-            print("Remenber")
+            print("Remember")
             speak_label('remember')
             if opener == True:
                 remember()
@@ -1092,14 +1041,13 @@ def main():
                 pass
 
     except KeyboardInterrupt:
-        os._exit(os.EX_OK)
-        pass
+        os._exit(0)
+        
 
 
 if __name__ == "__main__":
     try:
-        # device = get_device()
         main()
     except KeyboardInterrupt:
-        os._exit(os.EX_OK)
-        pass
+        os._exit(0)
+        
