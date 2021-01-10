@@ -42,7 +42,6 @@ import pyttsx3
 import socket
 import connect_to_internet
 import sys
-import geocoder
 import dlib
 import imutils
 from imutils.face_utils import FaceAligner
@@ -397,18 +396,6 @@ def my_current_location():
 def save_speech(mytext):
     playsound.playsound(os.path.join(os.getcwd(), 'tempaud', mytext + '.mp3'))
 
-# def currentad():
-#     try:
-#         send_url = "http://api.ipstack.com/check?access_key=c687e4498fc801d7a66e9b42fb2f6e50"
-#         geo_req = requests.get(send_url)
-#         geo_json = json.loads(geo_req.text)
-#         latitude = geo_json['latitude']
-#         longitude = geo_json['longitude']
-#         return [latitude, longitude]
-#         return geocoder.ip('me').latlng
-#     except Exception:
-#         pass
-
 def currentip():
     try:
         send_url = "http://api.ipstack.com/check?access_key=c687e4498fc801d7a66e9b42fb2f6e50"
@@ -661,7 +648,7 @@ def whatsthat():
         while True:
             now = datetime.datetime.now()
             timer = str(now.date()) + str(now.hour) + str(now.minute) + str(now.second)
-            name_docu = os.path.join(os.getcwd(), 'tempimages', timer + 'og')
+            name_docu = os.path.join(os.getcwd(), 'tempimages', timer + '.jpeg')
             r, image = cap.read()
             count+=1
             cv2.waitKey(200)
@@ -728,7 +715,9 @@ def remember():
         
         cap.release()
 
-    except Exception:
+    except Exception as e:
+        print(e)
+        save_speech('unknownError')
         pass
 
 
