@@ -252,6 +252,7 @@ def naviagtor(mlon, mlat, loc):
         prevlen = 0
         while 1:
             # input information
+            print(loc)
             longitude = mlon
             latitude = mlat
             destination = str(loc)
@@ -259,12 +260,13 @@ def naviagtor(mlon, mlat, loc):
             routeUrl = "http://dev.virtualearth.net/REST/V1/Routes/Driving?wp.0=" + str(latitude) + "," + str(
                 longitude) + "&wp.1=" + encodedDest + "&key=" + bingMapsKey
 
+            print(routeUrl)
             request = urllib.request.Request(routeUrl)
             response = urllib.request.urlopen(request)
-
+            print(response)
             r = response.read().decode(encoding="utf-8")
             result = json.loads(r)
-
+            print(result)
             itineraryItems = result["resourceSets"][0]["resources"][0]["routeLegs"][0]["itineraryItems"]
             route_distance = result["resourceSets"][0]["resources"][0]["travelDistance"]
 
@@ -293,7 +295,6 @@ def naviagtor(mlon, mlat, loc):
             # print(directions)
 
             prevlen = len(directions)
-            state=0
             with keyboard.Listener(on_release=on_release_sd) as listener:
                 listener.join()
             if state == 1:
@@ -313,7 +314,6 @@ def naviagtor(mlon, mlat, loc):
                 with keyboard.Listener(on_release=on_release_sd) as listener:
                     listener.join()
 
-                state = 0
                 if (time.time() - start) > num:
                     break
                 if state == 1:
@@ -334,7 +334,7 @@ def location(address):
         addresses = pyap.parse(address, country='IN')
         return addresses[0]
 
-    except Exception as e:
+    except Exception  as e:
         print(e)
         pass
 
@@ -423,10 +423,11 @@ def directions(latitude, longitude):
     try:
         save_speech('whereDoYouWantToGo')
         speech = speech2text()
-        try:
-            loc = location(speech)
-        except IndexError:
-            loc = speech
+        # try:
+        #     loc = location(speech)
+        # except IndexError:
+        #     loc = speech
+        loc = speech
         naviagtor(latitude, longitude, loc)
     except Exception as e:
         print(e)
@@ -460,11 +461,11 @@ def uber(latitude, longitude):
 
         save_speech('whereDoYouWantToGo')
         speech = speech2text()
-        try:
-            loc = location(speech)
-        except IndexError:
-            loc = speech
-
+        # try:
+        #     loc = location(speech)
+        # except IndexError:
+        #     loc = speech
+        loc = speech
         END_LAT, END_LNG = find_loc_address(loc)
 
         def estimate_ride(api_client):
@@ -650,7 +651,8 @@ def uber(latitude, longitude):
             modular_speech("Deactivate surge.")
             update_surge(api_client, 1.0)
 
-    except Exception:
+    except Exception as e:
+        print(e)
         pass
 
 def whatsthat():
@@ -936,7 +938,7 @@ def news(search_term=None):
 
 
 def main():
-    global opener
+    global opener,latitude, longitude
     opener = False
     count_main = 0
     print("Please Wait ...")
