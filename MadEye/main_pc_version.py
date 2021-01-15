@@ -35,6 +35,7 @@ from PIL import Image
 import cv2
 from azure.cognitiveservices.vision.computervision.models import VisualFeatureTypes
 from pynput import keyboard
+from pynput.keyboard import Key
 import time
 import subprocess
 import soundfile as sf
@@ -44,7 +45,9 @@ import connect_to_internet
 import sys
 import dlib
 import imutils
+from imutils.video import VideoStream
 from imutils.face_utils import FaceAligner
+import geocoder
 
 if os.path.exists(os.path.join(os.getcwd(), 'folder_images')):
     pass
@@ -69,67 +72,92 @@ if os.path.exists(os.path.join(os.getcwd(), 'temp.mp3')):
 bingMapsKey = 'AjrMuCn_mhj4OpWb0BYeh8foytxO6xpaRwc6v1fUqVCQcDzimbgGwOWTb7xxcrXW'
 tinify.key = "9XjdCVxnjNjqpfsK48qXlwxLhtwDS4pQ"
 state = 0
+latitude=''
+longitude=''
 
 def on_release_d(key):
     try:
-        print('{0} released'.format(key))
-        if key.char == 'd':
+        print(' {0} is pressed'.format(key))
+        if key == Key.up:
             # Stop listener
             return False
     except AttributeError:
-        print('special key {0} pressed'.format(key))
+        print('Wrong key {0} pressed'.format(key))
 
 
 def on_release_generic(key):
     try:
-        print('{0} released'.format(key))
-        if key.char == 'a':
+        global state
+        print(' {0} is presses'.format(key))
+        if key == Key.right:
+            state=1
             return False
-        elif key.char == 's':
-            global opener
-            opener = True
+        elif key == Key.down:
+            state=3
             return False
-        elif key.char == 'q':
+        elif key == Key.up:
             speak_label('goodbye')
             os._exit(0)
+            return False
+        elif key ==Key.left:
+            state=2
+            return False
         elif key.char == 'o':
             voiceassist()
+            state=0
             return False
     except AttributeError:
-        print('special key {0} pressed'.format(key))
+        print(' Wrong key {0} pressed'.format(key))
 
 def on_release_news(key):
     try:
         global state
-        print('{0} released'.format(key))
-        if key.char == 'a':
+        print(' {0} pressed'.format(key))
+        if key == Key.right:
             state = 1
             return False
-        elif key.char == 's':
+        elif key == Key.down:
             state = 2
             return False
-        elif key.char == 'd':
+        elif key == Key.left:
             state = 3
             return False
-        elif key.char == 'q':
+        elif key == Key.up:
             state = 4
             return False
     except AttributeError:
-        print('special key {0} pressed'.format(key))  
+        print(' Wrong key {0} pressed'.format(key))  
 
-def on_release_sd(key):
+def on_release_asd(key):
     try:
         global state
-        print('{0} released'.format(key))
-        if key.char == 's':
+        print(' {0} is pressed'.format(key))
+        if key == Key.down:
             state = 1
             return False
-        elif key.char == 'd':
+        elif key == Key.right:
             state = 2
             return False
+        elif key == Key.left:
+            state = 3
+            return False
+        elif key == Key.up:
+            state = 4
+            return False
     except AttributeError:
-        print('special key {0} pressed'.format(key))
+        print(' Wrong Key {0} pressed'.format(key))
 
+def on_release_q(key):
+    try:
+        print(' {0} is pressed'.format(key))
+        if key == Key.up:
+            speak_label('goodbye')
+            os._exit(0)
+            return False
+        else:
+            return False
+    except AttributeError:
+        print(' Wrong Key {0} pressed'.format(key))
 
 def internet(host="8.8.8.8", port=53, timeout=3):
     try:
@@ -147,11 +175,9 @@ def playerasync():
 def checker():
     with keyboard.Events() as events:
         event = events.get(sound_dur)
-        if event is None:
-            print('You did not press a key within {0} time'.format(sound_dur))
-        else:
-            with keyboard.Listener(on_release=on_release_d) as listener:
-                listener.join()
+        # if event is not None:
+        #     with keyboard.Listener(on_release=on_release_d) as listener:
+        #         listener.join()
         print("Press Now")
 
 
@@ -215,6 +241,7 @@ def voiceassist():
         response = urllib.request.urlopen(urly + urllib.parse.quote(request_said, safe='')).read().decode('utf-8')
         weathery = json.loads(response)
         intent_classified = weathery['prediction']['topIntent']
+        print(intent_classified)
         eval(intent_classified + '()')
 
     except Exception as e:
@@ -236,93 +263,75 @@ def modular_speech(text):
         proc = subprocess.Popen(['python', 'speech_init.py', uid])
         checker()
         proc.kill()
-        sleep(1)
+        sleep(1.5)
 
     except Exception as e:
         print(e)
 
 def speak_label(mytext):
-    playsound.playsound(os.path.join(os.getcwd(), 'tempaud', mytext + '.mp3'))
-    with keyboard.Listener(on_release=on_release_generic) as listener:
-        listener.join()
+    playsound.playsound(os.path.join(os.getcwd(), 'tempaud', mytext + '.wav'))
 
-def naviagtor(mlon, mlat, loc):
+def navigator(loc):
     try:
-        prevlen = 0
-        while 1:
-            # input information
-            print(loc)
-            longitude = mlon
-            latitude = mlat
-            destination = str(loc)
-            encodedDest = urllib.parse.quote(destination, safe='')
-            routeUrl = "http://dev.virtualearth.net/REST/V1/Routes/Driving?wp.0=" + str(latitude) + "," + str(
-                longitude) + "&wp.1=" + encodedDest + "&key=" + bingMapsKey
+        """Press    -> for next direction 
+                    down arrow key for current direction
+                    <- for previous direction
+                    up arrow key to quit the direction selection
+        """
+        # input information
+        # longitude = mlon
+        # latitude = mlat
+        destination = str(loc)
+        encodedDest = urllib.parse.quote(destination, safe='')
+        routeUrl = "http://dev.virtualearth.net/REST/V1/Routes/Driving?wp.0=" + str(latitude) + "," + str(
+            longitude) + "&wp.1=" + encodedDest + "&key=" + bingMapsKey
 
-            print(routeUrl)
-            request = urllib.request.Request(routeUrl)
-            response = urllib.request.urlopen(request)
-            print(response)
-            r = response.read().decode(encoding="utf-8")
-            result = json.loads(r)
-            print(result)
-            itineraryItems = result["resourceSets"][0]["resources"][0]["routeLegs"][0]["itineraryItems"]
-            route_distance = result["resourceSets"][0]["resources"][0]["travelDistance"]
+        request = urllib.request.Request(routeUrl)
+        response = urllib.request.urlopen(request)
 
-            directions = []
-            main_dist = []
+        r = response.read().decode(encoding="utf-8")
+        result = json.loads(r)
+        # print(result)
+        itineraryItems = result["resourceSets"][0]["resources"][0]["routeLegs"][0]["itineraryItems"]
+        route_distance = result["resourceSets"][0]["resources"][0]["travelDistance"]
 
-            # pprint.pprint(result)
-            for item in itineraryItems:
-                if float(item["travelDistance"]) < 1:
-                    org_distance = str(float(item["travelDistance"]) * 1000) + ' metre '
-                else:
-                    org_distance = str(item["travelDistance"]) + 'kilometre'
+        directions = []
+        main_dist = []
 
-                directions.append(item["instruction"]["text"] + ' in ' + org_distance)
-                main_dist.append(float(item["travelDistance"] * 1000))
-
-            # print(main_dist)
-            if int(main_dist[0]) < 10:
-                modular_speech(directions[1])
-
-            if len(directions) - prevlen == 0:
-                pass
+        # pprint.pprint(result)
+        for item in itineraryItems:
+            if float(item["travelDistance"]) < 1:
+                org_distance = str(float(item["travelDistance"]) * 1000) + ' metre '
             else:
-                modular_speech(directions[0])
+                org_distance = str(item["travelDistance"]) + ' kilometre'
 
-            # print(directions)
+            directions.append(item["instruction"]["text"] + ' in ' + org_distance)
+            main_dist.append(float(item["travelDistance"] * 1000))
 
-            prevlen = len(directions)
-            with keyboard.Listener(on_release=on_release_sd) as listener:
+        # print(main_dist)
+        if(len(directions)<1):
+            print("No direction found")
+        count=0
+        modular_speech(directions[count])
+
+        # print(directions)
+        # print(main_dist)
+
+        while count!=len(directions):
+            with keyboard.Listener(on_release=on_release_asd) as listener:
                 listener.join()
-            if state == 1:
-                if int(main_dist[0]) < 10:
-                    modular_speech(directions[1])
-                else:
-                    modular_speech(directions[0])
 
             if state == 2:
+                count+=1
+            elif state == 3:
+                count-=1
+                if count<0:
+                    count=0
+                    print("To choose next, press ->")
+                    continue
+            elif state == 4:
                 break
-            
-            num = 4
-
-            # since average human walking speed is 1.6m per second
-            start = time.time()
-            while 1:
-                with keyboard.Listener(on_release=on_release_sd) as listener:
-                    listener.join()
-
-                if (time.time() - start) > num:
-                    break
-                if state == 1:
-                    if int(main_dist[0]) < 10:
-                        modular_speech(directions[1])
-                    else:
-                        modular_speech(directions[0])
-
-                if state == 2:
-                    break
+            modular_speech(directions[count])
 
     except Exception:
         pass
@@ -330,8 +339,9 @@ def naviagtor(mlon, mlat, loc):
 def location(address):
 
     try:
-        addresses = pyap.parse(address, country='IN')
-        return addresses[0]
+        g = geocoder.bing(address, key='AjrMuCn_mhj4OpWb0BYeh8foytxO6xpaRwc6v1fUqVCQcDzimbgGwOWTb7xxcrXW')
+        g = geocoder.bing([g.lat,g.lng], method='reverse', key='AjrMuCn_mhj4OpWb0BYeh8foytxO6xpaRwc6v1fUqVCQcDzimbgGwOWTb7xxcrXW')
+        return g.address
 
     except Exception  as e:
         print(e)
@@ -360,14 +370,17 @@ def speech2text():
 def find_loc_address(address):
 
     try:
-        encoded_dest = urllib.parse.quote(address, safe='')
-        endpoint = 'http://dev.virtualearth.net/REST/v1/Locations?q=' + encoded_dest + '&key=' + bingMapsKey
-        request = urllib.request.Request(endpoint)
-        response = urllib.request.urlopen(request)
-        r = response.read().decode(encoding="utf-8")
-        result = json.loads(r)
-        res_Check = result["resourceSets"][0]["resources"][0]['geocodePoints'][1]['coordinates']
-        return res_Check
+        # encoded_dest = urllib.parse.quote(address, safe='')
+        # endpoint = 'http://dev.virtualearth.net/REST/v1/Locations?q=' + encoded_dest + '&key=' + bingMapsKey
+        # request = urllib.request.Request(endpoint)
+        # response = urllib.request.urlopen(request)
+        # r = response.read().decode(encoding="utf-8")
+        # result = json.loads(r)
+        # res_Check = result["resourceSets"][0]["resources"][0]['geocodePoints'][1]['coordinates']
+        if address[-1]=='.':
+            address = address[:-1]
+        g = geocoder.bing(address, key=bingMapsKey)
+        return (g.lat,g.lng)
 
     except Exception:
         pass
@@ -394,7 +407,7 @@ def my_current_location():
 
 
 def save_speech(mytext):
-    playsound.playsound(os.path.join(os.getcwd(), 'tempaud', mytext + '.mp3'))
+    playsound.playsound(os.path.join(os.getcwd(), 'tempaud', mytext + '.wav'))
 
 def currentip():
     try:
@@ -406,22 +419,22 @@ def currentip():
     except Exception:
         pass
 
-def directions(latitude, longitude):
+def directions():
     try:
         save_speech('whereDoYouWantToGo')
         speech = speech2text()
-        # try:
-        #     loc = location(speech)
-        # except IndexError:
-        #     loc = speech
+        try:
+            loc = location(speech)
+        except IndexError:
+            loc = speech
         loc = speech
-        naviagtor(latitude, longitude, loc)
+        navigator(loc)
     except Exception as e:
         print(e)
         save_speech('error')
 
 
-def weather(latitude, longitude):
+def weather():
     try:
         endpoint = 'http://api.openweathermap.org/data/2.5/weather?'
         api_key = 'e33c84cc9eb1157c533611a494f638a3'
@@ -440,7 +453,7 @@ def weather(latitude, longitude):
         print(e)
 
 
-def uber(latitude, longitude):
+def uber():
     try:
         UFP_PRODUCT_ID = '26546650-e557-4a7b-86e7-6a3942445247'
 
@@ -448,13 +461,12 @@ def uber(latitude, longitude):
 
         save_speech('whereDoYouWantToGo')
         speech = speech2text()
-        # try:
-        #     loc = location(speech)
-        # except IndexError:
-        #     loc = speech
+        try:
+            loc = location(speech)
+        except IndexError:
+            loc = speech
         loc = speech
         END_LAT, END_LNG = find_loc_address(loc)
-
         def estimate_ride(api_client):
 
             try:
@@ -683,39 +695,49 @@ def whatsthat():
 def remember():
 
     try:
+        print("Turning ON The Video Feed")
+        vs = VideoStream(src=0).start()
+        
         #Loading the HOG detector
         detector = dlib.get_frontal_face_detector()
         predictor = dlib.shape_predictor('./shape_predictor_68_face_landmarks.dat')
         fa = FaceAligner(predictor , desiredFaceWidth = 256)
 
-        #Set sample number so that the camera can open properly and snap the 10th image
-        samplenum=10
+        samplenum=1
         count=0
-        cap = cv2.VideoCapture(0)
-        name_docu = 'tempface.jpeg'
-        
-        while True:
-            r, image = cap.read()
-            count+=1
-            cv2.waitKey(200)
-            
-            if count==samplenum:
-                #grayscaling the image
-                gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-                faces = detector(gray_img, 0)
-                if faces is None:
-                    save_speech('noFaces')
-                else:
-                    for face in faces:
-                        face_aligned = fa.align(image, gray_img, face)
-                        cv2.imshow("Aligned", face_aligned)
-                        save_speech('nameOfPerson')
-                        name_person = speech2text()
-                        name_person.replace('.','')
-                        cv2.imwrite(os.path.join(os.getcwd(), 'folder_images', name_person + '.jpeg'), face_aligned)
-                    break
-        
-        cap.release()
+        stop_time=5
+        #   Timer for 5 seconds
+        start = time.time()
+        while (time.time()-start < stop_time and count!=samplenum):
+            #reading the frames
+            frame = vs.read()
+            #Resize the frame
+            frame = imutils.resize(frame, width=800)
+            #grayscaling the image
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            #detecting faces in it
+            faces = detector(gray_frame, 0)
+            cv2.imshow("Live Feed",frame)
+            key = cv2.waitKey(100) & 0xFF
+            # if the `q` key was pressed, break from the loop
+            if key == ord("q"):
+                break
+            if len(faces)<1:
+                continue
+            for face in faces:
+                count+=1
+                face_aligned = fa.align(frame, gray_frame, face)
+                # cv2.imshow("Aligned", face_aligned)
+                save_speech('nameOfPerson')
+                name_person = speech2text()
+                name_person.replace('.','')
+                cv2.imwrite(os.path.join(os.getcwd(), 'folder_images', name_person + '.jpeg'), face_aligned)
+                break
+
+        if count==0:
+            save_speech('noFaces')
+        cv2.destroyAllWindows()
+        vs.stop()
 
     except Exception as e:
         print(e)
@@ -789,7 +811,6 @@ def facts():
     conn.request ("GET", path + params, None, headers)
     response = conn.getresponse ()
     entity_data = json.loads(response.read())
-    print(entity_data)
 
     try:
         if entity_data['entities']['value']:
@@ -832,7 +853,6 @@ def readit():
         operationId = operationLocation[idLocation:]
         
         result = client.get_read_result(operationId)
-        print(result)
         
         while result.status in [OperationStatusCodes.running, OperationStatusCodes.not_started]:
             time.sleep(1)
@@ -896,141 +916,127 @@ def news(search_term=None):
         news_result = json.loads(response.text)
 
         if news_result['value']:
-            for k in news_result['value']:
+            count=0
+            records = len(news_result['value'])
+            while(count!=records):
+            # for k in news_result['value']:
+                k = news_result['value'][count]
                 modular_speech(k['name'])
                 with keyboard.Listener(on_release=on_release_news) as listener:
                     listener.join()
 
                 if state == 1:
+                    count+=1
                     continue
 
                 elif state == 2:
+                    print(k['description'])
                     modular_speech(k['description'])
                     sleep(0.5)
+                    count+=1
                     continue
 
                 elif state == 3:
-                    closer = True
-                    break
+                    count-=1
+                    if count<0:
+                        break
+                    else:
+                        continue
 
                 elif state == 4:
-                    speak_label('goodbye')
-                    os._exit(0)
-
+                    # speak_label('goodbye')
+                    # os._exit(0)
+                    break
 
         else:
             save_speech("nonews")
         
     except Exception as e:
-        print(e)
         save_speech('unknownError')
 
+def numbers_to_instruction(argument):
+    switcher = {
+        0: weather,
+        1: clock,
+        2: directions,
+        3: uber,
+        4: whatsthat,
+        5: remember,
+        6: whoisthat,
+        7: facts,
+        8: readit,
+        9: news
+    }
+    # Get the function from switcher dictionary
+    return switcher.get(argument, "Invalid instruction")
+
+def number_to_string(argument):
+    switcher = {
+        0: 'weather',
+        1: 'clock',
+        2: 'directions',
+        3: 'uber',
+        4: 'whatsthat',
+        5: 'remember',
+        6: 'whosthat',
+        7: 'facts',
+        8: 'readit',
+        9: 'news'
+    }
+    # Get the function from switcher dictionary
+    return switcher.get(argument, 'Invalid choice')
 
 def main():
-    global opener,latitude, longitude
-    opener = False
-    count_main = 0
     print("Please Wait ...")
     print("Finding your Location")
+    global latitude
+    global longitude
     latitude, longitude = my_current_location()
     print("Current Latitude is " + str(latitude) + " and longitude is " + str(longitude))
     try:
-        while True:
+        save_speech('welcome1')
+        sleep(3)
 
-            if count_main == 0:
-                
-                save_speech('welcome')
-                sleep(3)
-                count_main = 1
-                if internet():
-                    pass
-                else:
-                    connect_to_internet.main()
+        """ Uncomment when shifting to rpy """
+        # if internet():
+        #     pass
+        # else:
+        #     connect_to_internet.main()
+        count_main = 0
+        while count_main != 10:
+            if count_main<0:
+                print("Select the right arrow key to choose the next option or down arrow key to select current option")
+                count_main%=10
+                continue
+            speak_label(number_to_string(count_main))
 
-            # button_next = a
-            # button_ok   = s
-            # button_back = d
-
-            print("Weather")
-            speak_label('weather')
-            if opener == True:
-                weather(latitude, longitude)
-                opener = False
-            else:
-                pass
-
-            print("Clock")
-            speak_label('clock')
-            if opener == True:
-                clock()
-                opener = False
-            else:
-                pass
+            with keyboard.Listener(on_release=on_release_generic) as listener:
+                listener.join()
             
-            print("Directions!")
-            speak_label('directions')
-            if opener == True:
-                directions(latitude, longitude)
-                opener = False
-            else:
-                pass
+            # button_next = arrow right
+            # button_ok   = arrow down
+            # button_back = arrow left
+            # button_exit = arrrow up
+            # button_voice_assist = 'o'
+            if count_main==9 and state==1:
+                print("press up arrow key to exit or any other key to continue looping")
+                with keyboard.Listener(on_release=on_release_q) as listener:
+                    listener.join()
+                count_main=-1
 
-            print("Uber!")
-            speak_label('uber')
-            if opener == True:
-                uber(latitude, longitude)
-                opener = False
-            else:
-                pass
-
-            print("What's that?")
-            speak_label('whatsthat')
-            if opener == True:
-                whatsthat()
-                opener = False
-            else:
-                pass
-
-            print("Remember")
-            speak_label('remember')
-            if opener == True:
-                remember()
-                opener = False
-            else:
-                pass
-
-            print("Who's that?")
-            speak_label('whosthat')
-            if opener == True:
-                whoisthat()
-                opener = False
-            else:
-                pass
-
-            print("Facts!")
-            speak_label('facts')
-            if opener == True:
-                facts()
-                opener = False
-            else:
-                pass
-
-            print("Read it!")
-            speak_label('readIt')
-            if opener == True:
-                readit()
-                opener = False
-            else:
-                pass
-
-            print("News")
-            speak_label('news')
-            if opener == True:
-                news()
-                opener = False
-            else:
-                pass
-
+            if state==1:
+                count_main+=1
+            elif state==2:
+                count_main-=1
+            elif state==3:
+                inst = numbers_to_instruction(count_main)
+                inst()
+                if count_main==9:
+                    print("press up arrow key to exit or any other key to continue looping")
+                    with keyboard.Listener(on_release=on_release_q) as listener:
+                        listener.join()
+                    count_main=-1
+                count_main+=1
     except KeyboardInterrupt:
         os._exit(0)
         

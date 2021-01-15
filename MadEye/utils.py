@@ -154,11 +154,11 @@ def import_oauth2_credentials(filename=STORAGE_FILENAME):
         'access_token': storage['access_token'],
         'client_id': storage['client_id'],
         'client_secret': client_secret,
-        'expires_in_seconds': storage['expires_in_seconds'],
+        'expires_in_seconds': storage['expires_in'],
         'grant_type': storage['grant_type'],
         'redirect_url': redirect_url,
         'refresh_token': refresh_token,
-        'scopes': storage['scopes'],
+        'scopes': storage['scope'],
     }
 
     return credentials
