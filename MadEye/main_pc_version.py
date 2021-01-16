@@ -263,7 +263,7 @@ def modular_speech(text):
         proc = subprocess.Popen(['python', 'speech_init.py', uid])
         checker()
         proc.kill()
-        sleep(1.5)
+        sleep(2)
 
     except Exception as e:
         print(e)
@@ -680,7 +680,7 @@ def whatsthat():
         language = "en"
         max_descriptions = str(3)
         analysis = client.describe_image(url, max_descriptions, language)
-        print(analysis)
+        # print(analysis)
         if len(analysis.captions) > 0:
             captionn = analysis.captions[0].text
             print(captionn)
@@ -755,39 +755,61 @@ def whoisthat():
             shaaran_encoding = face_recognition.face_encodings(shaaran_image)[0]
             known_face_encodings.append(shaaran_encoding)
             known_face_names.append(os.path.splitext(i)[0])
-        samplenum=10
+        
+        print("Turning ON The Video Feed")
+        vs = VideoStream(src=0).start()
+        
+        #Loading the HOG detector
+        detector = dlib.get_frontal_face_detector()
+        predictor = dlib.shape_predictor('./shape_predictor_68_face_landmarks.dat')
+        fa = FaceAligner(predictor , desiredFaceWidth = 256)
+
+        samplenum=1
         count=0
-        cap = cv2.VideoCapture(0)
-        name_docu = 'tempface.jpeg'
-        while True:
-            r, image = cap.read()
-            count+=1
-            cv2.waitKey(200)
-            if count==samplenum:
-                cv2.imwrite(name_docu, image)
+        stop_time=5
+        #   Timer for 5 seconds
+        start = time.time()
+        while (time.time()-start < stop_time and count!=samplenum):
+            #reading the frames
+            frame = vs.read()
+            #Resize the frame
+            frame = imutils.resize(frame, width=800)
+            #grayscaling the image
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            #detecting faces in it
+            faces = detector(gray_frame, 0)
+            cv2.imshow("Live Feed",frame)
+            key = cv2.waitKey(100) & 0xFF
+            # if the `q` key was pressed, break from the loop
+            if key == ord("q"):
                 break
-        cap.release()
+            if len(faces)<1:
+                continue
+            for face in faces:
+                count+=1
+                face_aligned = fa.align(frame, gray_frame, face)
+                face_locations = face_recognition.face_locations(face_aligned)
+                face_encodings = face_recognition.face_encodings(face_aligned, face_locations)
+                face_names = []
+                for face_encoding in face_encodings:
 
-        rgb_small_frame = cv2.imread("tempface.jpeg")
-        face_locations = face_recognition.face_locations(rgb_small_frame)
-        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
-        face_names = []
-        for face_encoding in face_encodings:
+                    matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+                    name = "Unknown"
+                    
+                    if True in matches:
+                        first_match_index = matches.index(True)
+                        name = known_face_names[first_match_index]
 
-            matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
-            name = "Unknown"
-            
-            if True in matches:
-                first_match_index = matches.index(True)
-                name = known_face_names[first_match_index]
+                    face_names.append(name)
 
-            face_names.append(name)
+                for faces in face_names:
+                    modular_speech(faces)
+                break
 
-        for faces in face_names:
-            modular_speech(faces)
-
-        if len(face_names) == 0:
-            modular_speech('noFaces')
+        if count==0:
+            save_speech('noFaces')
+        cv2.destroyAllWindows()
+        vs.stop()
 
     except Exception as e:
         print(e)
@@ -796,23 +818,22 @@ def whoisthat():
 
 
 def facts():
-
-    subscription_key = "53977e3fbf6a412e995f5513896339e2"
-    host = 'api.bing.microsoft.com'
-    path = '/v7.0/search'
-
-    save_speech('answer')
-    query = speech2text()
-    mkt = 'en-US'
-        
-    headers = {"Ocp-Apim-Subscription-Key" : subscription_key, "X-MSEdge-ClientIP":currentip()}
-    params = '?mkt=' + mkt + '&q=' + urllib.parse.quote (query)
-    conn = http.client.HTTPSConnection (host)
-    conn.request ("GET", path + params, None, headers)
-    response = conn.getresponse ()
-    entity_data = json.loads(response.read())
-
     try:
+        subscription_key = "53977e3fbf6a412e995f5513896339e2"
+        host = 'api.bing.microsoft.com'
+        path = '/v7.0/search'
+
+        save_speech('answer')
+        query = speech2text()
+        mkt = 'en-US'
+            
+        headers = {"Ocp-Apim-Subscription-Key" : subscription_key, "X-MSEdge-ClientIP":currentip()}
+        params = '?mkt=' + mkt + '&q=' + urllib.parse.quote (query)
+        conn = http.client.HTTPSConnection (host)
+        conn.request ("GET", path + params, None, headers)
+        response = conn.getresponse ()
+        entity_data = json.loads(response.read())
+
         if entity_data['entities']['value']:
             main_entities = [entity for entity in entity_data['entities']['value'] if entity['entityPresentationInfo']['entityScenario'] == "DominantEntity"]
             if main_entities:
