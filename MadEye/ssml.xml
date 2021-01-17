@@ -1,0 +1,7 @@
+<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="en-IN">
+  <voice name="en-IN-NeerjaNeural">
+    <mstts:express-as style="customerservice">
+      Welcome, I am Drishti your versatile companion
+    </mstts:express-as>
+  </voice>
+</speak>
