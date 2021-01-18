@@ -72,14 +72,19 @@ if os.path.exists(os.path.join(os.getcwd(), 'temp.mp3')):
 bingMapsKey = 'AjrMuCn_mhj4OpWb0BYeh8foytxO6xpaRwc6v1fUqVCQcDzimbgGwOWTb7xxcrXW'
 tinify.key = "9XjdCVxnjNjqpfsK48qXlwxLhtwDS4pQ"
 state = 0
-latitude=''
-longitude=''
+latitude = ''
+longitude = ''
+home = ''
 
 def on_release_d(key):
     try:
+        global state
         print(' {0} is pressed'.format(key))
-        if key == Key.up:
+        if key == Key.right:
             # Stop listener
+            state=1
+            return False
+        else:
             return False
     except AttributeError:
         print('Wrong key {0} pressed'.format(key))
@@ -88,7 +93,7 @@ def on_release_d(key):
 def on_release_generic(key):
     try:
         global state
-        print(' {0} is presses'.format(key))
+        print(' {0} is pressed'.format(key))
         if key == Key.right:
             state=1
             return False
@@ -262,8 +267,9 @@ def modular_speech(text):
         sound_dur = len(sound_template) / sound_template.samplerate
         proc = subprocess.Popen(['python', 'speech_init.py', uid])
         checker()
+        sleep(1)
         proc.kill()
-        sleep(2)
+        # sleep(2)
 
     except Exception as e:
         print(e)
@@ -423,11 +429,13 @@ def directions():
     try:
         save_speech('whereDoYouWantToGo')
         speech = speech2text()
-        try:
-            loc = location(speech)
-        except IndexError:
-            loc = speech
-        loc = speech
+        if speech in ['home', 'Home', 'Home.', 'home.']:
+            loc = home
+        else:
+            try:
+                loc = location(speech)
+            except IndexError:
+                loc = speech
         navigator(loc)
     except Exception as e:
         print(e)
@@ -465,7 +473,6 @@ def uber():
             loc = location(speech)
         except IndexError:
             loc = speech
-        loc = speech
         END_LAT, END_LNG = find_loc_address(loc)
         def estimate_ride(api_client):
 
@@ -1008,12 +1015,54 @@ def number_to_string(argument):
     return switcher.get(argument, 'Invalid choice')
 
 def main():
+    
     print("Please Wait ...")
     print("Finding your Location")
     global latitude
     global longitude
     latitude, longitude = my_current_location()
     print("Current Latitude is " + str(latitude) + " and longitude is " + str(longitude))
+    
+    global home
+    if os.path.exists("home.txt"):
+        fhand = open('home.txt', 'r')
+        home = fhand.read()
+        fhand.close()
+    else:
+        fhand = open('home.txt', 'w')
+        print("Press -> for current location as home address or else press any other key to feed a different location as home address")
+        with keyboard.Listener(on_release=on_release_d) as listener:
+            listener.join()
+        
+        if state==1:
+            g = geocoder.bing([latitude, longitude], method='reverse', key=bingMapsKey)
+            home = g.address
+            fhand.write(home)
+
+        else:
+            print('Enter state code')
+            state_code = speech2text()
+            print('pincode')
+            pincode = speech2text()
+            print('city')
+            city = speech2text()
+            print('nearest landmark')
+            landmark = speech2text()
+            home =  landmark+', '+city+', '+state_code+' '+pincode
+            
+            try:
+                g = geocoder.bing(home, key=bingMapsKey)
+                g = geocoder.bing([g.lat,g.lng], method='reverse', key=bingMapsKey)
+            except:
+                print("Invalid address")
+                fhand.close()
+                os._exit(0)
+            
+            home = g.address
+            fhand.write(home)
+        
+        fhand.close()
+
     try:
         save_speech('welcome1')
         sleep(3)
