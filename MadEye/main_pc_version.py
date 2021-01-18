@@ -183,7 +183,6 @@ def checker():
         # if event is not None:
         #     with keyboard.Listener(on_release=on_release_d) as listener:
         #         listener.join()
-        print("Press Now")
 
 
 class TextToSpeech(object):
@@ -246,7 +245,6 @@ def voiceassist():
         response = urllib.request.urlopen(urly + urllib.parse.quote(request_said, safe='')).read().decode('utf-8')
         weathery = json.loads(response)
         intent_classified = weathery['prediction']['topIntent']
-        print(intent_classified)
         eval(intent_classified + '()')
 
     except Exception as e:
@@ -661,7 +659,7 @@ def uber():
         print(e)
         pass
 
-def whatsthat():
+def scenedescriptor():
     try:
         samplenum=10
         count=0
@@ -752,7 +750,7 @@ def remember():
         pass
 
 
-def whoisthat():
+def identifyperson():
     try:
         known_face_encodings = []
         known_face_names = []
@@ -988,9 +986,9 @@ def numbers_to_instruction(argument):
         1: clock,
         2: directions,
         3: uber,
-        4: whatsthat,
+        4: scenedescriptor,
         5: remember,
-        6: whoisthat,
+        6: identifyperson,
         7: facts,
         8: readit,
         9: news
@@ -1004,9 +1002,9 @@ def number_to_string(argument):
         1: 'clock',
         2: 'directions',
         3: 'uber',
-        4: 'whatsthat',
+        4: 'scenedescriptor',
         5: 'remember',
-        6: 'whosthat',
+        6: 'identifyperson',
         7: 'facts',
         8: 'readit',
         9: 'news'
@@ -1015,13 +1013,19 @@ def number_to_string(argument):
     return switcher.get(argument, 'Invalid choice')
 
 def main():
-    
-    print("Please Wait ...")
-    print("Finding your Location")
+    print("Welcome, I am Drishti your versatile companion")
+    save_speech('welcome1')
+    sleep(1.5)
+    print("Please wait ...")
+    save_speech('wait')
+    print("Finding your current location")
+    save_speech('location')
     global latitude
     global longitude
     latitude, longitude = my_current_location()
-    print("Current Latitude is " + str(latitude) + " and longitude is " + str(longitude))
+    address = geocoder.bing([latitude, longitude], method='reverse', key=bingMapsKey).address
+    print(address)
+    modular_speech(address)
     
     global home
     if os.path.exists("home.txt"):
@@ -1030,7 +1034,8 @@ def main():
         fhand.close()
     else:
         fhand = open('home.txt', 'w')
-        print("Press -> for current location as home address or else press any other key to feed a different location as home address")
+        print('Press right arrow key to set the current location as home address, or any other key to custom set your home address.')
+        save_speech('instruct1')
         with keyboard.Listener(on_release=on_release_d) as listener:
             listener.join()
         
@@ -1040,13 +1045,17 @@ def main():
             fhand.write(home)
 
         else:
-            print('Enter state code')
+            print('What is your state code?')
+            save_speech('state')
             state_code = speech2text()
-            print('pincode')
+            print('pincode?')
+            save_speech('pincode')
             pincode = speech2text()
-            print('city')
+            print('city?')
+            save_speech('city')
             city = speech2text()
-            print('nearest landmark')
+            print('and your nearest landmark?')
+            save_speech('landmark')
             landmark = speech2text()
             home =  landmark+', '+city+', '+state_code+' '+pincode
             
@@ -1054,7 +1063,8 @@ def main():
                 g = geocoder.bing(home, key=bingMapsKey)
                 g = geocoder.bing([g.lat,g.lng], method='reverse', key=bingMapsKey)
             except:
-                print("Invalid address")
+                print("Invalid address! Please try again.")
+                save_speech('invalid_address')
                 fhand.close()
                 os._exit(0)
             
@@ -1064,8 +1074,6 @@ def main():
         fhand.close()
 
     try:
-        save_speech('welcome1')
-        sleep(3)
 
         """ Uncomment when shifting to rpy """
         # if internet():
@@ -1075,7 +1083,8 @@ def main():
         count_main = 0
         while count_main != 10:
             if count_main<0:
-                print("Select the right arrow key to choose the next option or down arrow key to select current option")
+                print("Select the right arrow key to choose the next option or down arrow key for current option")
+                save_speech('instruct2')
                 count_main%=10
                 continue
             speak_label(number_to_string(count_main))
@@ -1089,7 +1098,8 @@ def main():
             # button_exit = arrrow up
             # button_voice_assist = 'o'
             if count_main==9 and state==1:
-                print("press up arrow key to exit or any other key to continue looping")
+                print("Press up arrow key to exit or any other key to continue looping")
+                save_speech('instruct3')
                 with keyboard.Listener(on_release=on_release_q) as listener:
                     listener.join()
                 count_main=-1
@@ -1103,6 +1113,7 @@ def main():
                 inst()
                 if count_main==9:
                     print("press up arrow key to exit or any other key to continue looping")
+                    save_speech('instruct3')
                     with keyboard.Listener(on_release=on_release_q) as listener:
                         listener.join()
                     count_main=-1
