@@ -453,13 +453,14 @@ def weather():
         temp_c = current_temp - 273.15
         temp_c_str = str(int(temp_c)) + ' degree Celsius'
         descript_place = weather['name']
-        modular_speech(descript_place + ' ' + temp_c_str)
+        weather_description = weather['weather'][0]['description']
+        modular_speech(descript_place + ' ' + temp_c_str +'.' + ' Today\'s forecast is ' + weather_description)
 
     except Exception as e:
         print(e)
 
 
-def uber():
+def bookmycab():
     try:
         UFP_PRODUCT_ID = '26546650-e557-4a7b-86e7-6a3942445247'
 
@@ -985,7 +986,7 @@ def numbers_to_instruction(argument):
         0: weather,
         1: clock,
         2: directions,
-        3: uber,
+        3: bookmycab,
         4: scenedescriptor,
         5: remember,
         6: identifyperson,
@@ -1001,7 +1002,7 @@ def number_to_string(argument):
         0: 'weather',
         1: 'clock',
         2: 'directions',
-        3: 'uber',
+        3: 'bookmycab',
         4: 'scenedescriptor',
         5: 'remember',
         6: 'identifyperson',
