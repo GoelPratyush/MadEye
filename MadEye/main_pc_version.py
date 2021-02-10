@@ -18,6 +18,9 @@ from utils import import_oauth2_credentials
 from utils import paragraph_print
 from utils import response_print
 from utils import success_print
+from utils import estimate_of_ride
+from utils import price
+from utils import expected_time
 from uber_rides.client import SurgeError
 from uber_rides.errors import ClientError
 from uber_rides.errors import ServerError
@@ -474,7 +477,6 @@ def bookmycab():
             loc = speech
         END_LAT, END_LNG = find_loc_address(loc)
         def estimate_ride(api_client):
-
             try:
                 estimate = api_client.estimate_ride(
                     product_id=SURGE_PRODUCT_ID,
@@ -519,10 +521,8 @@ def bookmycab():
                 success_print(message)
 
         def request_ufp_ride(api_client):
-
             try:
-
-                estimate = api_client.estimate_ride(
+                estimate = estimate_of_ride(
                     product_id=UFP_PRODUCT_ID,
                     start_latitude=latitude,
                     start_longitude=longitude,
@@ -530,26 +530,35 @@ def bookmycab():
                     end_longitude=END_LNG,
                     seat_count=2
                 )
-                fare = estimate.json.get('fare')
-
-                request = api_client.request_ride(
-                    product_id=UFP_PRODUCT_ID,
-                    start_latitude=latitude,
-                    start_longitude=longitude,
-                    end_latitude=END_LAT,
-                    end_longitude=END_LNG,
-                    seat_count=2,
-                    fare_id=fare['fare_id']
-                )
+                if estimate == 0:
+                    modular_speech('Intercity cab is currently unavailable')
+                else:
+                    cost = price(estimate)
+                    modular_speech('Estimate fare is '+str(cost)+' rupees')
+                    time = expected_time()
+                    if time==0:
+                        modular_speech('No Cab is currently available, book later')
+                    else:
+                        modular_speech('The nearest cab is '+str(time)+' minutes away')
+                
+                # fare = estimate.json.get('fare')
+                # request = api_client.request_ride(
+                #     product_id=UFP_PRODUCT_ID,
+                #     start_latitude=latitude,
+                #     start_longitude=longitude,
+                #     end_latitude=END_LAT,
+                #     end_longitude=END_LNG,
+                #     seat_count=2,
+                #     fare_id=fare['fare_id']
+                # )
 
             except (ClientError, ServerError) as error:
-                fail_print(error)
-                return
+                return fail_print(error)
 
-            else:
-                success_print(estimate.json)
-                success_print(request.json)
-                return request.json.get('request_id')
+            # else:
+            #     success_print(estimate.json)
+            #     success_print(request.json)
+            #     return request.json.get('request_id')
 
         def request_surge_ride(api_client, surge_confirmation_id=None):
 
@@ -603,10 +612,10 @@ def bookmycab():
             api_client = create_uber_client(credentials)
 
             # ride request with upfront pricing flow
-
             modular_speech("Request a ride with upfront pricing product.")
-            ride_id = request_ufp_ride(api_client)
-
+            request_ufp_ride(api_client)
+            """ Only run the below code after proper authentication to actually book a cab"""
+            """
             modular_speech("Update ride status to accepted.")
             update_ride(api_client, 'accepted', ride_id)
 
@@ -655,6 +664,7 @@ def bookmycab():
 
             modular_speech("Deactivate surge.")
             update_surge(api_client, 1.0)
+            """
 
     except Exception as e:
         print(e)
@@ -864,6 +874,7 @@ def readit():
             r, image = cap.read()
             count+=1
             cv2.waitKey(200)
+            cv2.imshow("Live Feed",image)
             if count==samplenum:
                 cv2.imwrite(name_docu, image)
                 break
@@ -900,6 +911,7 @@ def readit():
 
         else:
             save_speech('unknownError')
+        cv2.destroyAllWindows()
 
     except Exception as e:
         print(e)
@@ -1025,6 +1037,8 @@ def main():
     global longitude
     latitude, longitude = my_current_location()
     address = geocoder.bing([latitude, longitude], method='reverse', key=bingMapsKey).address
+    address = address.split(',')
+    address = ','.join(address[:2])
     print(address)
     modular_speech(address)
     

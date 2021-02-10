@@ -27,6 +27,8 @@ from __future__ import unicode_literals
 
 from collections import namedtuple
 from yaml import safe_load
+import secrets
+from math import sin, cos, sqrt, atan2, radians
 
 from uber_rides.client import UberRidesClient
 from uber_rides.session import OAuth2Credential
@@ -187,3 +189,102 @@ def create_uber_client(credentials):
     )
     session = Session(oauth2credential=oauth2credential)
     return UberRidesClient(session, sandbox_mode=True)
+
+def estimate_of_ride(
+        product_id=None,
+        start_latitude=None,
+        start_longitude=None,
+        start_place_id=None,
+        end_latitude=None,
+        end_longitude=None,
+        end_place_id=None,
+        seat_count=None,
+    ):
+    try:
+        """Estimate ride details given a product, start, and end location.
+
+        Only pickup time estimates and surge pricing information are provided
+        if no end location is provided.
+
+        Parameters
+            product_id (str)
+                The unique ID of the product being requested. If none is
+                provided, it will default to the cheapest product for the
+                given location.
+            start_latitude (float)
+                The latitude component of a start location.
+            start_longitude (float)
+                The longitude component of a start location.
+            start_place_id (str)
+                The beginning or pickup place ID. Only "home" or "work"
+                is acceptable.
+            end_latitude (float)
+                Optional latitude component of a end location.
+            end_longitude (float)
+                Optional longitude component of a end location.
+            end_place_id (str)
+                The final or destination place ID. Only "home" or "work"
+                is acceptable.
+            seat_count (str)
+                Optional Seat count for shared products. Default is 2.
+
+
+        Returns
+            (Response)
+                A Response object containing fare id, time, price, and distance
+                estimates for a ride.
+        """
+        args = {
+            'product_id': product_id,
+            'start_latitude': start_latitude,
+            'start_longitude': start_longitude,
+            'start_place_id': start_place_id,
+            'end_latitude': end_latitude,
+            'end_longitude': end_longitude,
+            'end_place_id': end_place_id,
+            'seat_count': seat_count
+        }
+
+        call = _api_call('POST', 'v1.2/requests/estimate', args=args)
+        return call
+    except:
+
+        # approximate radius of earth in km
+        R = 6373.0
+
+        lat1 = radians(start_latitude)
+        lon1 = radians(start_longitude)
+        lat2 = radians(end_latitude)
+        lon2 = radians(end_longitude)
+
+        dlon = lon2 - lon1
+        dlat = lat2 - lat1
+
+        a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+        c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+        distance = R * c
+        if distance>=50:
+            return 0
+        else:
+            return round(distance,2)
+
+def price(distance):
+    base = 50
+    price_per_km = 6
+    after_20 = 12
+    duration_cost = 1.5*distance
+    hike = 1.2
+    cost = 0
+    if distance < 20:
+        cost = distance*price_per_km
+        distance = 0
+    else:
+        cost = 20*price_per_km
+        distance-=20
+    cost = (base+cost+distance*after_20+duration_cost)*hike
+    return round(cost,2)
+
+def expected_time():
+    pick = [0, 5, 8, 10, 15, 16, 22]
+    return secrets.choice(pick)
